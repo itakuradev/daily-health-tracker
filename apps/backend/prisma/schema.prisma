@@ -1,0 +1,70 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  name       String
+  cognitoSub String?   @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  meals      Meal[]
+  conditions Condition[]
+  workouts   Workout[]
+}
+
+model Meal {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  recordDate DateTime @db.Date
+  calories   Int?
+  protein    Float?
+  fat        Float?
+  carbs      Float?
+  calcium    Float?
+  memo       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, recordDate])
+}
+
+model Condition {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  recordDate       DateTime @db.Date
+  weight           Float?
+  waist            Float?
+  armCircumference Float?
+  sleepHours       Float?
+  conditionScore   Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, recordDate])
+}
+
+model Workout {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  recordDate DateTime @db.Date
+  memo       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, recordDate])
+}

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment variables (do not commit)
+.env
+
+# Build outputs
+dist/
+build/
+
+# Prisma generated
+apps/backend/src/generated/
+
+# Test coverage
+coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
