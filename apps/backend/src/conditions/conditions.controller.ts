@@ -7,18 +7,31 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUserId } from '../auth/current-user.decorator';
 import { UpsertConditionDto } from './dto/upsert-condition.dto';
 import { ConditionsService } from './conditions.service';
 
+@ApiTags('conditions')
+@ApiSecurity('X-User-Id')
+@ApiHeader({ name: 'X-User-Id', description: '開発用ユーザーID（例: 1）', required: true })
 @UseGuards(AuthGuard)
 @Controller('conditions')
 export class ConditionsController {
   constructor(private readonly conditionsService: ConditionsService) {}
 
-  /** GET /api/conditions?date=YYYY-MM-DD */
   @Get()
+  @ApiOperation({ summary: '体調記録を取得', description: '指定日の体調記録を返す。未登録なら null。' })
+  @ApiQuery({ name: 'date', example: '2026-06-28', description: '取得したい日 (YYYY-MM-DD)' })
+  @ApiOkResponse({ description: '体調記録またはnull' })
   findByDate(
     @CurrentUserId() userId: number,
     @Query('date') date: string,
@@ -26,9 +39,10 @@ export class ConditionsController {
     return this.conditionsService.findByDate(userId, date);
   }
 
-  /** POST /api/conditions */
   @Post()
   @HttpCode(200)
+  @ApiOperation({ summary: '体調記録を保存 (upsert)', description: '未登録なら作成、登録済みなら更新。' })
+  @ApiOkResponse({ description: '保存後の体調記録' })
   upsert(
     @CurrentUserId() userId: number,
     @Body() dto: UpsertConditionDto,
