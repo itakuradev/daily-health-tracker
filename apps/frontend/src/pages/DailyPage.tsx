@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import MealForm from '../components/MealForm';
 import { useAuth } from '../contexts/AuthContext';
 import { getTodayRecordDate } from '../utils/recordDate';
 
 export default function DailyPage() {
   const { isLoggedIn, userId, logout } = useAuth();
   const navigate = useNavigate();
-  const today = getTodayRecordDate();
+  const [date, setDate] = useState(getTodayRecordDate);
 
   if (!isLoggedIn) {
     navigate('/');
@@ -17,36 +19,50 @@ export default function DailyPage() {
     navigate('/');
   };
 
+  const handleTodayClick = () => setDate(getTodayRecordDate());
+
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>健康管理マスター</h1>
-        <button style={styles.logoutButton} onClick={handleLogout}>
+    <div style={s.container}>
+      <header style={s.header}>
+        <h1 style={s.headerTitle}>健康管理マスター</h1>
+        <button style={s.logoutButton} onClick={handleLogout}>
           ログアウト
         </button>
       </header>
 
-      <main style={styles.main}>
-        <div style={styles.dateBar}>
-          <span style={styles.dateLabel}>記録日</span>
-          <span style={styles.dateValue}>{today}</span>
-          <span style={styles.userId}>ユーザーID: {userId}</span>
+      <main style={s.main}>
+        {/* 日付バー */}
+        <div style={s.dateBar}>
+          <span style={s.dateLabel}>記録日</span>
+          <input
+            type="date"
+            style={s.dateInput}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <button style={s.todayButton} onClick={handleTodayClick}>
+            今日
+          </button>
+          <span style={s.userId}>ユーザーID: {userId}</span>
         </div>
 
-        <div style={styles.grid}>
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>🍽️ 食事</h2>
-            <p style={styles.placeholder}>Step 5 で実装予定</p>
+        <div style={s.grid}>
+          {/* 食事カード */}
+          <section style={s.card}>
+            <h2 style={s.cardTitle}>🍽️ 食事</h2>
+            <MealForm date={date} />
           </section>
 
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>💪 体調</h2>
-            <p style={styles.placeholder}>Step 6 (frontend) で実装予定</p>
+          {/* 体調カード（Step 6 frontend で実装） */}
+          <section style={s.card}>
+            <h2 style={s.cardTitle}>💪 体調</h2>
+            <p style={s.placeholder}>Step 6 (frontend) で実装予定</p>
           </section>
 
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>🏋️ 筋トレ</h2>
-            <p style={styles.placeholder}>Step 6 (frontend) で実装予定</p>
+          {/* 筋トレカード（Step 6 frontend で実装） */}
+          <section style={s.card}>
+            <h2 style={s.cardTitle}>🏋️ 筋トレ</h2>
+            <p style={s.placeholder}>Step 6 (frontend) で実装予定</p>
           </section>
         </div>
       </main>
@@ -54,7 +70,7 @@ export default function DailyPage() {
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
     background: '#f5f5f5',
@@ -83,28 +99,43 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
   main: {
-    maxWidth: 900,
+    maxWidth: 960,
     margin: '0 auto',
     padding: '24px 16px',
   },
   dateBar: {
     background: '#fff',
     borderRadius: 8,
-    padding: '12px 20px',
+    padding: '10px 20px',
     marginBottom: 20,
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
   },
   dateLabel: {
     fontSize: 13,
     color: '#888',
+    whiteSpace: 'nowrap',
   },
-  dateValue: {
-    fontSize: 18,
-    fontWeight: 700,
+  dateInput: {
+    border: '1px solid #ddd',
+    borderRadius: 6,
+    padding: '4px 8px',
+    fontSize: 15,
     color: '#2e7d32',
+    fontWeight: 700,
+    outline: 'none',
+  },
+  todayButton: {
+    background: '#e8f5e9',
+    color: '#2e7d32',
+    border: '1px solid #a5d6a7',
+    borderRadius: 6,
+    padding: '4px 12px',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
   },
   userId: {
     marginLeft: 'auto',
@@ -113,8 +144,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: 16,
+    alignItems: 'start',
   },
   card: {
     background: '#fff',
@@ -125,7 +157,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardTitle: {
     fontSize: 16,
     fontWeight: 700,
-    marginBottom: 12,
+    marginBottom: 16,
     color: '#333',
   },
   placeholder: {
