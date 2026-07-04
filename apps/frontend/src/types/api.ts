@@ -63,3 +63,11 @@ export interface UpsertWorkoutPayload {
   date: string;
   memo?: string;
 }
+
+/** 履歴: 日次まとめ（GET /api/history/daily レスポンス） */
+export interface DailyRecord {
+  date: string;
+  meal: MealRecord | null;
+  condition: ConditionRecord | null;
+  workout: WorkoutRecord | null;
+}

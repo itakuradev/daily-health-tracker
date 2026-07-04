@@ -27,9 +27,14 @@ export default function DailyPage() {
     <div style={s.container}>
       <header style={s.header}>
         <h1 style={s.headerTitle}>健康管理マスター</h1>
-        <button style={s.logoutButton} onClick={handleLogout}>
-          ログアウト
-        </button>
+        <div style={s.headerActions}>
+          <button style={s.historyButton} onClick={() => navigate('/history')}>
+            📅 履歴
+          </button>
+          <button style={s.logoutButton} onClick={handleLogout}>
+            ログアウト
+          </button>
+        </div>
       </header>
 
       <main style={s.main}>
@@ -90,6 +95,17 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 20,
     fontWeight: 700,
     margin: 0,
+  },
+  headerActions: { display: 'flex', gap: 8, alignItems: 'center' },
+  historyButton: {
+    background: 'rgba(255,255,255,0.15)',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.5)',
+    borderRadius: 6,
+    padding: '6px 14px',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
   },
   logoutButton: {
     background: 'transparent',
