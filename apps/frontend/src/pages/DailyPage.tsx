@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ConditionForm from '../components/ConditionForm';
 import MealForm from '../components/MealForm';
+import WorkoutForm from '../components/WorkoutForm';
 import { useAuth } from '../contexts/AuthContext';
 import { getTodayRecordDate } from '../utils/recordDate';
 
@@ -53,16 +55,16 @@ export default function DailyPage() {
             <MealForm date={date} />
           </section>
 
-          {/* 体調カード（Step 6 frontend で実装） */}
+          {/* 体調カード */}
           <section style={s.card}>
             <h2 style={s.cardTitle}>💪 体調</h2>
-            <p style={s.placeholder}>Step 6 (frontend) で実装予定</p>
+            <ConditionForm date={date} />
           </section>
 
-          {/* 筋トレカード（Step 6 frontend で実装） */}
+          {/* 筋トレカード */}
           <section style={s.card}>
             <h2 style={s.cardTitle}>🏋️ 筋トレ</h2>
-            <p style={s.placeholder}>Step 6 (frontend) で実装予定</p>
+            <WorkoutForm date={date} />
           </section>
         </div>
       </main>
@@ -159,10 +161,5 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     marginBottom: 16,
     color: '#333',
-  },
-  placeholder: {
-    fontSize: 13,
-    color: '#bbb',
-    fontStyle: 'italic',
   },
 };
