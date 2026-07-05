@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ErrorBanner from './ErrorBanner';
 import { useMeal } from '../hooks/useMeal';
 import type { UpsertMealPayload } from '../types/api';
 
@@ -102,9 +103,7 @@ export default function MealForm({ date }: Props) {
       {saveStatus === 'saved' && (
         <p style={s.successMsg}>✅ 保存しました</p>
       )}
-      {saveStatus === 'error' && (
-        <p style={s.errorMsg}>❌ {errorMessage}</p>
-      )}
+      <ErrorBanner message={saveStatus === 'error' ? errorMessage : null} />
     </form>
   );
 }

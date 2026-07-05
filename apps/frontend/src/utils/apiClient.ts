@@ -1,31 +1,59 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
-/**
- * fetch のラッパー。
- * - ベース URL を自動付与
- * - Content-Type: application/json を付与
- * - X-User-Id ヘッダーを付与（開発用モック認証）
- */
+/** バックエンドの統一エラーレスポンス型 */
+interface ApiErrorBody {
+  statusCode: number;
+  error: string;
+  message: string | string[];
+}
+
+export class ApiError extends Error {
+  readonly statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
   userId: number,
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-User-Id': String(userId),
-      ...options.headers,
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': String(userId),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // ネットワーク接続エラー（サーバー未起動など）
+    throw new ApiError(0, 'サーバーに接続できません。バックエンドが起動しているか確認してください。');
   }
 
-  // 204 No Content など body がない場合は null を返す
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `エラー ${res.status}`;
+    try {
+      const body: ApiErrorBody = JSON.parse(text);
+      if (Array.isArray(body.message)) {
+        message = body.message.join(' / ');
+      } else if (typeof body.message === 'string') {
+        message = body.message;
+      }
+    } catch {
+      // JSON でない場合はそのまま
+      if (text) message = text;
+    }
+    throw new ApiError(res.status, message);
+  }
+
   const text = await res.text();
   return text ? (JSON.parse(text) as T) : (null as T);
 }

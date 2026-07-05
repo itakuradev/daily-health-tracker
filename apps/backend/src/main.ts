@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,6 +13,18 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   });
+
+  // リクエストボディのバリデーション（DTO デコレーターを有効化）
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,        // DTO に存在しないフィールドを自動除去
+      forbidNonWhitelisted: false,
+      transform: true,        // 型を自動変換 (string → number 等)
+    }),
+  );
+
+  // 統一エラーレスポンスフィルター
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('健康管理マスター API')

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ErrorBanner from './ErrorBanner';
 import { useWorkout } from '../hooks/useWorkout';
 import type { UpsertWorkoutPayload } from '../types/api';
 
@@ -50,7 +51,7 @@ export default function WorkoutForm({ date }: Props) {
       </div>
 
       {saveStatus === 'saved' && <p style={s.successMsg}>✅ 保存しました</p>}
-      {saveStatus === 'error' && <p style={s.errorMsg}>❌ {errorMessage}</p>}
+      <ErrorBanner message={saveStatus === 'error' ? errorMessage : null} />
     </form>
   );
 }
