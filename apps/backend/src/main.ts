@@ -5,25 +5,36 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
+/**
+ * 環境変数 CORS_ORIGIN からオリジンのリストを生成する。
+ * カンマ区切りで複数指定可能。例: "http://localhost:5173,http://localhost:5174"
+ */
+function parseCorsOrigins(raw: string | undefined): string | string[] {
+  const fallback = 'http://localhost:5173';
+  if (!raw) return fallback;
+  const origins = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return origins.length === 1 ? origins[0] : origins;
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: parseCorsOrigins(process.env.CORS_ORIGIN),
+    allowedHeaders: ['Content-Type', 'X-User-Id'],
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   });
 
-  // リクエストボディのバリデーション（DTO デコレーターを有効化）
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,        // DTO に存在しないフィールドを自動除去
+      whitelist: true,
       forbidNonWhitelisted: false,
-      transform: true,        // 型を自動変換 (string → number 等)
+      transform: true,
     }),
   );
 
-  // 統一エラーレスポンスフィルター
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()

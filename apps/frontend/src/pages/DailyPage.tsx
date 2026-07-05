@@ -7,14 +7,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { getTodayRecordDate } from '../utils/recordDate';
 
 export default function DailyPage() {
-  const { isLoggedIn, userId, logout } = useAuth();
+  const { userId, logout } = useAuth();
   const navigate = useNavigate();
   const [date, setDate] = useState(getTodayRecordDate);
-
-  if (!isLoggedIn) {
-    navigate('/');
-    return null;
-  }
 
   const handleLogout = () => {
     logout();

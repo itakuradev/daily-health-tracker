@@ -15,7 +15,7 @@ const SCORE_LABELS: Record<number, string> = {
 };
 
 export default function HistoryPage() {
-  const { isLoggedIn, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const today = new Date();
@@ -30,11 +30,6 @@ export default function HistoryPage() {
   const month = activeDate.getMonth() + 1;
 
   const { recordedDates, fetchDaily, deleteDaily } = useHistory(year, month);
-
-  if (!isLoggedIn) {
-    navigate('/');
-    return null;
-  }
 
   const handleLogout = () => { logout(); navigate('/'); };
 
