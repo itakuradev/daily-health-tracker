@@ -12,7 +12,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 function parseCorsOrigins(raw: string | undefined): string | string[] {
   const fallback = 'http://localhost:5173';
   if (!raw) return fallback;
-  const origins = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const origins = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   return origins.length === 1 ? origins[0] : origins;
 }
 
@@ -37,22 +40,31 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('健康管理マスター API')
-    .setDescription('食事・体調・筋トレ記録の REST API')
-    .setVersion('1.0')
-    .addApiKey(
-      { type: 'apiKey', in: 'header', name: 'X-User-Id', description: '開発用ユーザーID（例: 1）' },
-      'X-User-Id',
-    )
-    .build();
+  if (process.env.ENABLE_SWAGGER === 'true') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('健康管理マスター API')
+      .setDescription('食事・体調・筋トレ記録の REST API')
+      .setVersion('1.0')
+      .addApiKey(
+        {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-User-Id',
+          description: '開発用ユーザーID（例: 1）',
+        },
+        'X-User-Id',
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api-docs', app, document);
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api-docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`Backend running on http://localhost:${port}/api`);
-  console.log(`Swagger UI:      http://localhost:${port}/api-docs`);
+  if (process.env.ENABLE_SWAGGER === 'true') {
+    console.log(`Swagger UI:      http://localhost:${port}/api-docs`);
+  }
 }
 bootstrap();
