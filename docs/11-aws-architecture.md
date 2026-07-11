@@ -1,4 +1,4 @@
-# 健康管理マスター AWSアーキテクチャ設計書 v0.1
+# 健康管理マスター AWSアーキテクチャ設計書 v0.2
 
 ## 1. ドキュメントの目的
 
@@ -136,12 +136,16 @@ CloudFront
 │
 └── /api/* → CloudFront VPC Origin
                    ↓
-              internal ALB
+              internal ALB（Private Origin Subnet）
+                   ↓ private IP
+              ECS Fargate（Public Application Subnet）
                    ↓
-              ECS Fargate
-                   ↓
-              RDS PostgreSQL
+              RDS PostgreSQL（Private DB Subnet）
 ```
+
+Stage 2でもECS Taskは当面Public Application Subnetに残し、internal ALBのみを新設のPrivate Origin Subnetへ配置する。
+
+ALBはターゲットへprivate IPで通信するため、ECSが別Subnetにあっても接続できる。
 
 認証にはCognito User PoolとCognito Hosted UIを利用する。
 
@@ -255,11 +259,14 @@ AWS
 │   └── Backend Docker image
 │
 ├── VPC
-│   ├── Application Subnet x2
-│   │   ├── internal ALB
-│   │   └── ECS Fargate Task
+│   ├── Public Application Subnet A / C
+│   │   └── ECS Fargate Task（public IPあり）
 │   │
-│   └── Private DB Subnet x2
+│   ├── Private Origin Subnet A / C
+│   │   ├── internal ALB
+│   │   └── CloudFront VPC Origin用ENI
+│   │
+│   └── Private DB Subnet A / C
 │       └── RDS PostgreSQL
 │
 ├── ECS
@@ -285,8 +292,18 @@ CloudFront
 直接公開しない:
 S3
 ALB
-ECS
 RDS
+```
+
+ECS Taskは、Public Application Subnetに配置するためpublic IPを持つ。
+
+ただし、ECS Security GroupのInboundをALB Security Groupからのみに限定し、インターネットからECS Taskへの直接アクセスは拒否する。
+
+```text
+ECS:
+public IPは存在するが、
+Security GroupによりALBからの通信のみ許可し、
+インターネットからの直接アクセスは拒否する。
 ```
 
 ブラウザは以下のCloudFront標準ドメインへアクセスする。
@@ -316,18 +333,39 @@ VPC CIDR:
 
 異なるAvailability Zoneに、Application SubnetとDB Subnetを作成する。
 
+### Stage 1
+
 例：
 
-| Subnet               | CIDR例          | 用途      |
-| -------------------- | -------------- | ------- |
-| Application Subnet A | `10.0.1.0/24`  | ALB、ECS |
-| Application Subnet C | `10.0.2.0/24`  | ALB、ECS |
-| Private DB Subnet A  | `10.0.11.0/24` | RDS     |
-| Private DB Subnet C  | `10.0.12.0/24` | RDS     |
+| Subnet                   | CIDR例          | 用途      |
+| ------------------------ | -------------- | ------- |
+| Public Application Subnet A | `10.0.1.0/24`  | ALB、ECS |
+| Public Application Subnet C | `10.0.2.0/24`  | ALB、ECS |
+| Private DB Subnet A      | `10.0.11.0/24` | RDS     |
+| Private DB Subnet C      | `10.0.12.0/24` | RDS     |
+
+### Stage 2
+
+Stage 2では、CloudFront VPC Originで使うinternal ALB専用に、Private Origin Subnetを2つ追加する。
+
+例：
+
+| Subnet                      | CIDR例          | 用途                          |
+| --------------------------- | -------------- | --------------------------- |
+| Public Application Subnet A | `10.0.1.0/24`  | ECS Fargate Task            |
+| Public Application Subnet C | `10.0.2.0/24`  | ECS Fargate Task            |
+| Private Origin Subnet A     | `10.0.21.0/24` | internal ALB、VPC Origin ENI |
+| Private Origin Subnet C     | `10.0.22.0/24` | internal ALB、VPC Origin ENI |
+| Private DB Subnet A         | `10.0.11.0/24` | RDS                         |
+| Private DB Subnet C         | `10.0.12.0/24` | RDS                         |
+
+Private Origin SubnetとPrivate DB Subnetには、Internet Gatewayへのデフォルトルートを設定しない。
 
 利用するAvailability Zoneは、構築時点で利用可能な2つを選択する。
 
 特定のAZ名へ固定しすぎず、Terraform化時には変数として扱う。
+
+ただし、CloudFront VPC Originは東京リージョンに対応しているが、AZ ID `apne1-az3` は対象外である。Private Origin Subnetを配置するAZは、VPC Originが対応するAZ IDから選択する。
 
 ## 7.3 Internet Gateway
 
@@ -391,9 +429,25 @@ Outbound：
 
 ### Stage 2
 
-Stage 2ではALBをinternalに変更し、CloudFront VPC Originからの通信のみを受け付ける。
+Stage 2では、Stage 1のinternet-facing ALBのschemeを変更するのではなく、Private Origin Subnetにinternal ALBを新規作成して置き換える（詳細は「12.1 ALB Scheme」を参照）。
 
-VPC Origin作成時のCloudFront側アクセス方式に従い、不要なInboundを許可しない。
+internal ALBは、CloudFront VPC Originからの通信のみを受け付ける。
+
+CloudFront VPC Originを作成すると、AWS管理のSecurity Group `CloudFront-VPCOrigins-Service-SG` が作られる。internal ALBのSecurity Groupでは、このSecurity GroupからのHTTP通信のみを許可する。
+
+Inbound：
+
+| Protocol | Port | Source                            |
+| -------- | ---: | --------------------------------- |
+| TCP      |   80 | `CloudFront-VPCOrigins-Service-SG` |
+
+Outbound：
+
+| Protocol | Port | Destination        |
+| -------- | ---: | ------------------ |
+| TCP      | 3000 | ECS Security Group |
+
+CloudFront managed prefix listを使う方法もあるが、service-managed Security Groupの方が対象を絞れる。
 
 ## 8.2 ECS Security Group
 
@@ -405,13 +459,16 @@ Inbound：
 
 Outbound：
 
-| Protocol |  Port | Destination        |
-| -------- | ----: | ------------------ |
-| TCP      |  5432 | RDS Security Group |
-| TCP      |   443 | AWSサービス・外部HTTPS    |
-| 必要な通信    | 必要な宛先 | 構築時に確認             |
+| Protocol | Port | Destination        |
+| -------- | ---: | ------------------ |
+| TCP      | 5432 | RDS Security Group |
+| TCP      |  443 | `0.0.0.0/0`        |
+
+TCP 443（`0.0.0.0/0`）は、ECR、CloudWatch Logs、Secrets Manager、Cognito UserInfo等への外向きHTTPS通信に使用する。Security Groupの宛先には「AWSサービス」のような名称は指定できないため、初期構成では `0.0.0.0/0` を用いる。
 
 初期実装では、Outboundを一度すべて許可したうえで疎通確認し、必要な通信が整理できた段階で制限する方法も許容する。
+
+将来ECSをprivate subnetへ移した場合は、外向きHTTPS通信のために、NAT Gateway、またはECR・CloudWatch Logs・Secrets Manager等のVPC Endpointが必要になる。
 
 ## 8.3 RDS Security Group
 
@@ -640,6 +697,17 @@ Stage 2：
 internal
 ```
 
+ALBのschemeは作成時に `internet-facing` または `internal` を選択するものであり、後から変更できない。IaC上でもscheme変更はreplacement扱いとなる。
+
+そのため、Stage 2ではStage 1のinternet-facing ALBをそのまま切り替えるのではなく、Private Origin Subnetにinternal ALBを新規作成する。
+
+```text
+1. Private Origin Subnetにinternal ALBを新規作成
+2. CloudFront VPC Originをinternal ALBへ向ける
+3. CloudFront経由の疎通確認
+4. Stage 1のinternet-facing ALBを削除
+```
+
 Stage 2ではCloudFront VPC Originからinternal ALBへ接続する。
 
 ## 12.2 Listener
@@ -786,10 +854,17 @@ Backup Retention:
 
 * Multi-AZ
 * Read Replica
-* Performance Insights
 * Enhanced Monitoring
 
 通常のCloudWatch Metricsは利用する。
+
+DB性能分析については、RDS Performance Insightsのコンソール体験が2026年7月31日に終了し、CloudWatch Database Insightsへ移行する予定である。そのため、本書ではCloudWatch Database Insightsとして扱う。
+
+```text
+CloudWatch Database Insights:
+初期はStandard相当のみ
+Advanced modeは無効
+```
 
 ---
 
@@ -1139,9 +1214,29 @@ User作成
 
 UserInfo取得は初回User作成時のみ行い、通常のAPIリクエストごとには実行しない。
 
+Cognito UserInfo endpointは、`openid` scopeを含むAccess Tokenを受け取り、scopeに応じてemailやprofile情報を返す。
+
+この方式では、BackendからCognitoの公開UserInfo endpointへ外向きHTTPS通信が必要になる。現在の方針ではECSをPublic Application Subnet + public IPで動かすため、この通信は成立する。
+
+将来ECSをprivate subnetへ移した場合は、NAT Gateway等の外向き経路を用意するか、User作成方式を変更する必要がある（「37. 将来課題」を参照）。
+
 `name` は取得できない場合を考慮し、DB上でnullableとする。
 
 emailが取得できない場合は、架空の値を保存せずUser作成エラーとして扱う。
+
+なお、現在のPrisma schemaは設計方針とずれており、Cognito導入前にschema migrationが必要である。
+
+```text
+現状:
+name       String   （必須）
+cognitoSub String?  （任意）
+
+Cognito導入後の狙い:
+name       String?  （UserInfoで取得できない場合を考慮しnullable）
+cognitoSub String   （認証済みUserに対して必須）
+```
+
+schema変更もRolling Deploymentを考慮し、Expand → Deploy → Contractで段階的に行う（「26.4 Rolling Deploymentとの整合」を参照）。
 
 ---
 
@@ -1408,13 +1503,39 @@ Terraformとの管理重複を避けるため、完成形では以下の分担�
 
 Terraformとecspressoの両方から同じECS Serviceを変更しない。
 
+## 25.1 学習上の位置づけ
+
+ecspressoを使う構成は技術的に整合しているが、汎用的な学習価値ではTerraformやGitHub Actionsほど普遍的ではない。習得の優先順位は次のとおりとする。
+
+```text
+1. AWS手動構築
+2. Terraform
+3. GitHub Actions + OIDC
+4. ECSデプロイ自動化
+5. ecspresso
+```
+
+ecspressoは設計として残すが、Stage 1やTerraform学習を止めてまで先に習得する必要はない。
+
 ---
 
 ## 26. Prisma Migration設計
 
-## 26.1 起動時migrationを行わない
+## 26.1 Stage 1：起動時migration
 
-完成形では、通常のBackend Task起動時にmigrationを実行しない。
+Stage 1では、現行Dockerfileの起動コマンドをそのまま利用する。
+
+```bash
+npx prisma migrate deploy && node dist/src/main.js
+```
+
+そのため、Stage 1ではmigrationはseed手順とは独立して、最初のECS Task起動時に自動実行される。初回起動時にDB schemaが作成される。
+
+seedは起動コマンドに含めず、one-off taskとして初回のみ1回実行する（「26.5 Seed」を参照）。
+
+## 26.2 Stage 2：起動時migrationを行わない
+
+Stage 2（完成形）では、通常のBackend Task起動時にmigrationを実行しない。
 
 以下の構成は、完成形では採用しない。
 
@@ -1428,7 +1549,9 @@ npx prisma migrate deploy && node dist/src/main.js
 node dist/src/main.js
 ```
 
-## 26.2 Migration実行方法
+Stage 2への移行時に、起動時migrationを廃止し、GitHub Actions + ecspresso runへ移す。
+
+## 26.3 Migration実行方法（Stage 2）
 
 GitHub Actionsからecspressoのone-off taskを実行する。
 
@@ -1446,7 +1569,7 @@ Migration成功後に、通常のECS deployを実行する。
 3. ECS deploy
 ```
 
-## 26.3 Rolling Deploymentとの整合
+## 26.4 Rolling Deploymentとの整合
 
 Migration後もしばらく旧Taskが稼働する可能性がある。
 
@@ -1478,11 +1601,11 @@ Application Deploy:
 
 破壊的なschema変更を、同一デプロイで一度に行わない。
 
-## 26.4 Seed
+## 26.5 Seed
 
 Seedは通常のデプロイごとには実行しない。
 
-初期構築時や必要な場合だけ、one-off taskとして実行する。
+Stage 1・Stage 2いずれも、初期構築時や必要な場合だけ、one-off taskとして実行する。
 
 ```bash
 node dist/prisma/seed.js
@@ -1582,6 +1705,8 @@ Alert:
 ```
 
 請求アラートを早い段階で設定する。
+
+ただし、AWS Budgetsは課金の上限を強制的に停止する機能ではなく、あくまで通知である。請求情報の反映と通知には遅延があるため、通知後も料金が増える可能性がある。Budget通知に頼りきらず、Billing画面と各リソースを定期的に確認する。
 
 ---
 
@@ -1751,20 +1876,25 @@ AWS-7:
 IAM Role作成
 
 AWS-8:
-ECS Cluster / Task Definition / Service作成
+ECS Cluster / Task Definition作成
 
 AWS-9:
-ALB / Target Group作成
+Target Group / ALB / Listener作成
 
 AWS-10:
-GET /api/health 疎通確認
+ECS Service作成
+ALB Target Groupへ接続
 
 AWS-11:
-ECS → RDS接続確認
+GET /api/health 疎通確認
 
 AWS-12:
-Prisma migration / seed
+ECS → RDS接続確認 / seed
 ```
+
+ALBに接続するECS Serviceを作るには、先にTarget GroupとALB Listenerが必要なため、ALBをService より先に作成する。ClusterとTask Definitionは先に作ってよいが、ServiceはALBの後が自然である。
+
+Prisma migrationは、現行Dockerfileの起動コマンドにより最初のECS Task起動時（AWS-10）に自動実行される。AWS-12では、migrationとは独立してseedをone-off taskで1回だけ実行する（「26. Prisma Migration設計」を参照）。
 
 ## 33.2 Stage 2
 
@@ -1876,6 +2006,7 @@ Terraform化
 将来的に利用者や要件が増えた場合は、以下を検討する。
 
 * ECS Taskをprivate subnetへ移動
+    * この場合、Backend → Cognito UserInfo endpoint等への外向きHTTPS通信経路が失われるため、NAT Gatewayまたは必要なVPC Endpointを用意するか、初回User作成方式を変更する
 * NAT GatewayまたはVPC Endpoint導入
 * RDS Multi-AZ
 * ECS desiredCountを2以上へ変更
@@ -1888,7 +2019,7 @@ Terraform化
 * ALB HTTPS Listener
 * CloudWatch Alarm拡充
 * Datadog / Sentry
-* RDS Performance Insights
+* CloudWatch Database Insights（Advanced mode）
 * Blue/Green Deployment
 * 複数AWS環境
 * BFF + HttpOnly Cookie
