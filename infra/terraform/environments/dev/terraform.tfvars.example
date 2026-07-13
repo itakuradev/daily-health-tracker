@@ -1,0 +1,20 @@
+# 変数の上書き例。
+# 既定値のままで動作するため、通常この tfvars は不要。
+# 値を変えたい場合のみコピーして terraform.tfvars を作成する。
+#
+# 注意: 実値を含む terraform.tfvars はコミットしない（.gitignore 済み）。
+#        ただし DB パスワード等の機密値はここに書かない（自動生成される）。
+
+# aws_region = "ap-northeast-1"
+# image_tag  = "aws-0"
+
+# RDS
+# db_instance_class = "db.t4g.micro"
+# db_allocated_storage = 20
+
+# ECS Task 数（0 にすると Task を止められる）
+# ecs_desired_count = 1
+
+# Cognito Callback / Logout URL（将来 CloudFront の URL を追加する）
+# cognito_callback_urls = ["http://localhost:5173/"]
+# cognito_logout_urls   = ["http://localhost:5173/"]

@@ -36,6 +36,14 @@ Stage 1はAWSサービス間の接続関係を理解するための一時構成�
 
 Stage 2を、本アプリケーションの完成形として扱う。
 
+### 現在の実装範囲
+
+本書は全Stageの設計を記載するが、**現時点でTerraformにより実装するのはStage 1 + Cognitoの範囲**である。
+
+Stage 2の完成形（CloudFront、S3、internal ALB、VPC Origin、GitHub Actions、ecspresso等）は設計として維持し、実装はStage 2以降で行う。
+
+なお、VPC・Subnet・Route Table・Security Groupについては、AWSコンソールによる手動構築で接続関係の学習を既に完了している。以降のAWS構築はTerraformを主経路とする（詳細は「31. Terraform化方針」を参照）。
+
 ---
 
 ## 2. 設計の基本方針
@@ -48,8 +56,9 @@ AWS構成では、以下を基本方針とする。
 * 認証・DB・機密情報を適切に分離する
 * AWSリソース間のアクセスをSecurity Groupで制限する
 * 長期的なAWSアクセスキーを使用しない
-* ECSデプロイにはGitHub Actionsとecspressoを利用する
-* インフラは最終的にTerraformで管理する
+* AWS構築はTerraformを主経路とし、AWSコンソールはTerraform反映結果の確認に使う
+* Stage 1ではECS Task DefinitionとServiceもTerraformで管理する
+* ECSデプロイの自動化（GitHub Actions + ecspresso）はStage 2以降で再検討する
 * 独自ドメインは取得しない
 * フロントエンドとAPIはCloudFrontの標準ドメインから配信する
 * 初期構成ではコストを優先し、Multi-AZや自動スケーリングは採用しない
@@ -1081,6 +1090,10 @@ Container Insightsは初期実装では無効とする。
 
 ## 20. Cognito設計
 
+Cognito User Pool、App Client、User Pool Domain（Hosted UI）は、Stage 1 + Cognitoの範囲としてTerraformで管理する。
+
+Cognitoの実ユーザーはTerraformで作成せず、AWSコンソールまたは運用手順から管理者が手動作成する。
+
 ## 20.1 Cognito User Pool
 
 認証基盤としてCognito User Poolを使用する。
@@ -1473,6 +1486,10 @@ workflow_dispatch
 
 ## 25. ecspresso管理範囲
 
+本節はStage 2以降の完成形における管理分担を示す。
+
+Stage 1では、ECS Task DefinitionとServiceも含めてTerraformで管理し、ecspressoは導入しない。ecspressoの導入可否はStage 2以降で再検討する。
+
 ecspressoは、ECSの以下を管理する。
 
 * Task Definition
@@ -1770,38 +1787,27 @@ Tagは、リソース検索とコスト確認に利用する。
 
 ## 31. Terraform化方針
 
-## 31.1 構築順序
+## 31.1 学習経緯とTerraformの位置づけ
 
-最初はAWSコンソールと必要箇所のAWS CLIを利用して構築する。
+VPC・Subnet・Route Table・Security Groupについては、AWSコンソールによる手動構築で接続関係の学習を既に完了している。手動学習で得た理解：
 
-目的：
+* VPCとSubnetの関係
+* Internet GatewayとRoute Tableの関係
+* Security Group間参照
 
-* VPCとSubnetの関係を理解する
-* ALBとTarget Groupの関係を理解する
-* ECS Cluster、Service、Task Definitionの関係を理解する
-* Security Group間参照を理解する
-* RDS Subnet Groupを理解する
-* CognitoとCloudFrontの設定関係を理解する
+これらの手動学習は完了したため、以降のAWS構築はTerraformを主経路とする。ALB・ECS・RDS・Cognito等、未学習のサービス間関係についても、Terraformコードとplan結果、およびAWSコンソールでの反映確認を通じて理解を進める。
 
-手動構築で構成を理解した後、Terraform化する。
+AWSコンソールは、Terraform反映結果の確認に使用する。
 
-## 31.2 Terraform化方法
+## 31.2 既存リソースの扱い
 
-学習用環境でデータ保持が不要な場合は、以下を推奨する。
+Stage 1では、原則としてTerraformで新規作成する。
 
-```text
-1. 手動構築
-2. 接続確認
-3. 設定値を記録
-4. 手動リソースを削除
-5. Terraformで再構築
-```
-
-既存リソースを残す必要がある場合のみ、Terraform importを検討する。
+ただし既にpush済みのimageを持つECR Repository（`daily-health-tracker-backend`）は、削除せずTerraform importで管理下へ取り込む。Terraform 1.5以降のimport blockを利用する。ECRはdev環境のdestroyで消えないよう、別root module（shared）で管理する。
 
 ## 31.3 Terraform化後の運用
 
-Terraform化後は、Terraform管理対象のAWSリソースをAWSコンソールから直接変更しない。
+Terraform管理対象のAWSリソースは、AWSコンソールから直接変更しない。
 
 ```text
 AWS構成変更
@@ -1810,47 +1816,78 @@ Terraformコード変更
 ↓
 terraform plan
 ↓
-内容確認
+内容確認（AWSコンソールで反映結果を確認）
 ↓
 terraform apply
 ```
 
-ECS Task DefinitionとService deploymentはecspressoで管理する。
+Stage 1では、ECS Task DefinitionとServiceもTerraformで管理する。ecspressoによるECSデプロイ管理はStage 2以降で再検討する。
 
 ---
 
-## 32. Terraformディレクトリ候補
+## 32. Terraformディレクトリ構成
+
+初期実装では`modules/`を作らず、環境ディレクトリ内に機能別`.tf`を置くフラット構成とする。実構成は以下。
 
 ```text
 infra/
   terraform/
-    environments/
-      dev/
-        main.tf
-        variables.tf
-        outputs.tf
-        terraform.tfvars
+    bootstrap/            # remote state用S3 Bucket（ローカルstateで作成）
+      versions.tf
+      providers.tf
+      main.tf
+      outputs.tf
+      README.md
 
-    modules/
-      network/
-      security/
-      database/
-      load-balancer/
-      container/
-      frontend/
-      auth/
-      cicd/
+    shared/               # 環境をまたいで保持する永続リソース（ECR）。S3 backend: shared/terraform.tfstate
+      backend.tf
+      backend.hcl.example
+      versions.tf
+      providers.tf
+      variables.tf
+      ecr.tf
+      outputs.tf
+      README.md
+
+    environments/
+      dev/                # Stage 1 + Cognito本体。S3 backend: dev/terraform.tfstate
+        backend.tf
+        backend.hcl.example
+        versions.tf
+        providers.tf
+        data.tf
+        locals.tf
+        variables.tf
+        network.tf
+        security.tf
+        ecr.tf            # ECR本体はsharedが管理。ここではdata sourceで参照するのみ
+        database.tf
+        secrets.tf
+        iam.tf
+        logs.tf
+        alb.tf
+        ecs.tf
+        cognito.tf
+        outputs.tf
+        terraform.tfvars.example
+        README.md
 ```
 
-初期実装では、過度にmodule分割しない。
+同一ディレクトリ内の`.tf`ファイルは、1つのroot moduleとしてまとめて評価される。ファイル分割は可読性のためであり、実行単位（init / plan / apply）はディレクトリ全体である。
 
-Terraformコード量が少ない段階では、環境単位のファイル構成から開始してもよい。
+ECR Repositoryは、dev環境を`terraform destroy`しても保持したいため、devとは別のroot module（shared）で管理する。devからは`data "aws_ecr_repository"`で参照するのみとし、destroy対象に含めない。
+
+remote stateは、bootstrapがローカルstateでS3 Bucketを作成し、shared・dev環境はそのBucketをS3 backendとして利用する（keyはそれぞれ`shared/terraform.tfstate`・`dev/terraform.tfstate`）。S3 backendでは`encrypt=true`・`use_lockfile=true`を用い、DynamoDB Lock Tableは作成しない。実行順はbootstrap → shared → environments/dev。
+
+将来Terraformコード量が増えた段階で、必要に応じて`modules/`分割を検討する。
 
 ---
 
 ## 33. AWS構築順序
 
 ## 33.1 Stage 1
+
+Stage 1は、AWS-3以降のリソースをTerraform（`environments/dev` root module）で一括構築する。以下の番号はリソース間の依存関係を示す論理的な順序であり、実際のリソース作成順はTerraformが依存グラフから解決する。ALBのTarget Group / ListenerがECS Serviceより先に必要になる依存関係は、Terraformコード上で表現している。
 
 ```text
 AWS-1:
@@ -1898,9 +1935,11 @@ Prisma migrationは、現行Dockerfileの起動コマンドにより最初のECS
 
 ## 33.2 Stage 2
 
+Cognito User Pool / App Client / Hosted UI Domainは、Stage 1 + Cognitoの範囲として既にTerraform管理へ前倒しした（下記AWS-13）。Stage 2ではこれらを前提に、Backendの JWT検証以降を進める。
+
 ```text
-AWS-13:
-Cognito User Pool / App Client / Hosted UI
+AWS-13:（Stage 1 + Cognitoで実施済み）
+Cognito User Pool / App Client / Hosted UI Domain（Terraform管理）
 
 AWS-14:
 Backend JWT検証
@@ -1927,11 +1966,10 @@ AWS-21:
 GitHub Actions OIDC
 
 AWS-22:
-ecspresso deploy
-
-AWS-23:
-Terraform化
+ecspresso deploy（Stage 2で再検討）
 ```
+
+Terraform化はAWS-23として後回しにせず、Stage 1からAWS構築の主経路として利用する。Stage 2で追加するCloudFront・S3・internal ALB・VPC Origin・GitHub Actions等も、同じくTerraformで管理する（ECSデプロイ自動化のecspresso併用可否はStage 2で再検討する）。
 
 ---
 

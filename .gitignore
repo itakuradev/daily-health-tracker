@@ -28,3 +28,22 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Terraform
+# コミットするもの: *.tf / .terraform.lock.hcl / *.example
+# コミットしないもの: 以下
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+# 実値を含む tfvars（*.example は追跡する）
+*.tfvars
+!*.tfvars.example
+# ローカル backend 設定（*.example は追跡する）
+backend.hcl
+# .terraform.lock.hcl はコミットするため無視しない
+
+docs/aws
+terraform-source-review.txt
