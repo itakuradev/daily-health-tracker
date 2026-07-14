@@ -45,5 +45,12 @@ crash.*.log
 backend.hcl
 # .terraform.lock.hcl はコミットするため無視しない
 
+# docs
 docs/aws
+
+# terraform
 terraform-source-review.txt
+bootstrap-plan.txt
+dev-plan-redacted.txt
+dev-plan.txt
+shared-plan.txt
