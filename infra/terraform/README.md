@@ -37,6 +37,10 @@ ECR（Repository と push 済み image）は作り直し後も残したいので
 2. `shared/` を `terraform init -backend-config=backend.hcl` して apply → [shared/README.md](shared/README.md)
 3. `environments/dev/` を `terraform init -backend-config=backend.hcl` して apply → [environments/dev/README.md](environments/dev/README.md)
 
+> **順序に注意**: この順で実行すること。`shared` を apply して ECR Repository が存在する前に
+> `environments/dev` を `plan` すると、`data.aws_ecr_repository.backend` の参照が解決できず
+> **plan がエラーになる**。必ず shared を先に apply しておく。
+
 詳細な実行順・ECR import・疎通確認・seed・Cognito ユーザー作成・destroy 挙動・
 state に含まれる機密情報・継続課金は、各 README を参照。
 

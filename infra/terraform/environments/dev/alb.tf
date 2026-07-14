@@ -20,8 +20,10 @@ resource "aws_lb" "main" {
 }
 
 # target_type = ip: Fargate（awsvpc）の Task ENI を直接ターゲット登録する。
+# Target Group 名は最大 32 文字。"${local.name_prefix}-backend-tg" だと
+# daily-health-tracker-dev-backend-tg = 35 文字で超過するため、短縮形 dht- を使う。
 resource "aws_lb_target_group" "backend" {
-  name        = "${local.name_prefix}-backend-tg"
+  name        = "dht-${var.environment}-backend-tg"
   target_type = "ip"
   protocol    = "HTTP"
   port        = var.container_port

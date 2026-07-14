@@ -2,7 +2,8 @@
 # Bootstrap: Terraform remote state 用の S3 Bucket を作成する。
 #
 # この bootstrap 自体は「ローカル state」で動作する（backend 設定を持たない）。
-# ここで作った S3 Bucket を、environments/dev が S3 backend として利用する。
+# ここで作った S3 Bucket は、shared と environments/dev の両方が S3 backend として利用する
+# （同じ Bucket 内で key を分ける: shared/terraform.tfstate と dev/terraform.tfstate）。
 #
 # S3 backend native locking（use_lockfile = true）を使うため、
 # DynamoDB Lock Table は作成しない。

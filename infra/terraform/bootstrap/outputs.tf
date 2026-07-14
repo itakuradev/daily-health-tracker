@@ -11,8 +11,19 @@ output "state_bucket_region" {
   value       = var.aws_region
 }
 
-output "backend_hcl_hint" {
-  description = "dev の backend.hcl に転記する内容のヒント"
+output "shared_backend_hcl_hint" {
+  description = "shared の backend.hcl に転記する内容のヒント（key = shared/terraform.tfstate）"
+  value       = <<-EOT
+    bucket       = "${aws_s3_bucket.tfstate.bucket}"
+    key          = "shared/terraform.tfstate"
+    region       = "${var.aws_region}"
+    encrypt      = true
+    use_lockfile = true
+  EOT
+}
+
+output "dev_backend_hcl_hint" {
+  description = "environments/dev の backend.hcl に転記する内容のヒント（key = dev/terraform.tfstate）"
   value       = <<-EOT
     bucket       = "${aws_s3_bucket.tfstate.bucket}"
     key          = "dev/terraform.tfstate"

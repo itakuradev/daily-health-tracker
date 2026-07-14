@@ -1,6 +1,7 @@
 # bootstrap — Terraform remote state 用 S3 Bucket の作成
 
-このディレクトリは、`environments/dev` が使う **Terraform remote state 用の S3 Bucket** を作成する。
+このディレクトリは、`shared` と `environments/dev` の両方が使う **Terraform remote state 用の S3 Bucket** を作成する。
+両者は同じ Bucket 内で **key を分けて** state を保存する（`shared/terraform.tfstate` / `dev/terraform.tfstate`）。
 
 - bootstrap 自身は **ローカル state** で動作する（`backend` 設定を持たない）。
 - 作成する S3 Bucket には次を設定する:
@@ -39,12 +40,26 @@ apply 後、出力された `state_bucket_name` を控える。
 terraform output
 ```
 
-この値を `environments/dev/backend.hcl` の `bucket` に転記する。
+この値を `shared/backend.hcl` と `environments/dev/backend.hcl` の `bucket` に転記する。
+それぞれの `backend.hcl` に転記する内容は、次の output でそのまま確認できる。
+
+```bash
+terraform output shared_backend_hcl_hint   # shared 用（key = shared/terraform.tfstate）
+terraform output dev_backend_hcl_hint      # dev 用（key = dev/terraform.tfstate）
+```
+
+## 実行順序（全体）
+
+```text
+1. bootstrap        … このモジュール（state 用 S3 Bucket を作成）
+2. shared           … 既存 ECR を import
+3. environments/dev … Stage 1 + Cognito
+```
 
 ## 注意
 
 - bootstrap のローカル state ファイル（`terraform.tfstate`）は Git にコミットしない（`.gitignore` 済み）。
-- state Bucket 自体を Terraform で破棄すると dev の state が失われる。運用上は作りっぱなしにする。
+- state Bucket 自体を Terraform で破棄すると shared / dev の state が失われる。運用上は作りっぱなしにする。
 - state Bucket には `lifecycle { prevent_destroy = true }` を設定している。
   そのため `terraform destroy` や置換（bucket 名変更など）は既定で **エラーで停止**する。
   どうしても削除したい場合は、`main.tf` の当該 `lifecycle` ブロックを一時的に外してから
