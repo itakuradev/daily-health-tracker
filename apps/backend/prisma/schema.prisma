@@ -9,12 +9,15 @@ datasource db {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  name       String
-  cognitoSub String?   @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  /// UserInfo で取得できない場合を考慮し nullable
+  name  String?
+  /// Cognito の sub。認証済み User に対して必須・一意。
+  /// unique 制約が初回 User 作成の冪等性を担保する。
+  cognitoSub String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   meals      Meal[]
   conditions Condition[]

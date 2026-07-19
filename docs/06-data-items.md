@@ -187,32 +187,30 @@ Cognito認証後、Cognitoの `sub` とアプリケーションDBのUserを紐�
 * `email` だけを認証上の主キーとして扱わない
 * `name` は任意とする
 * 記録データはUserの内部IDである `id` に紐づける
-* 初回APIアクセス時にUserが存在しない場合は、CognitoのclaimをもとにUserを作成する
+* 初回APIアクセス時にUserが存在しない場合は、UserInfoから取得した属性をもとにUserを作成する
+* `email` が取得できない場合は、架空の値を保存せずUserを作成しない
 
-## 7.4 現行schemaとの差分メモ
+Access Tokenには `email` / `name` が含まれないため、初回作成時の属性はCognitoのclaimではなくUserInfoエンドポイントから取得する（認証・認可設計書 7.1 / 10.3）。
 
-現行schemaでは `name` が必須になっている。
+## 7.4 schema適用状況
 
-```prisma id="current-user-name"
-name String
+Cognito導入に伴うschema変更は適用済みである（migration `cognito_auth`）。
+
+```prisma id="current-user-schema"
+name       String?           // UserInfoで取得できない場合を考慮しnullable
+cognitoSub String  @unique   // 認証済みUserに対して必須・一意
 ```
 
-完成形のデータ定義としては、`name` は任意扱いが自然である。
-
-理由：
+`name` を必須にせずnullableとした理由：
 
 * Cognitoから常に表示名が取得できるとは限らない
 * 初期利用者本人のみであれば、表示名なしでも機能上問題ない
 * emailとcognitoSubがあればユーザー識別は可能
+* 空文字を保存する案は、値の有無を判別できなくなるため採用しない
 
-実装時には、以下のいずれかを選択する。
+`cognitoSub` のunique制約は、初回User作成の冪等性を担保する役割も持つ（認証・認可設計書 10.5）。
 
-| 選択肢                | 内容                        |
-| ------------------ | ------------------------- |
-| `name String?` にする | DB上でも任意にする                |
-| 空文字を保存する           | DBは必須のまま、取得できない場合は空文字を入れる |
-
-推奨は `name String?` である。
+なお、この変更に伴い `cognitoSub` を持たない固定seedユーザーは廃止し、migration内で削除している（認証・認可設計書 18.2）。
 
 ---
 

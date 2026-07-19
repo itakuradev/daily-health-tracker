@@ -8,11 +8,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiHeader,
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
-  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
@@ -21,12 +20,7 @@ import { UpsertMealDto } from './dto/upsert-meal.dto';
 import { MealsService } from './meals.service';
 
 @ApiTags('meals')
-@ApiSecurity('X-User-Id')
-@ApiHeader({
-  name: 'X-User-Id',
-  description: '開発用ユーザーID（例: 1）',
-  required: true,
-})
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('meals')
 export class MealsController {

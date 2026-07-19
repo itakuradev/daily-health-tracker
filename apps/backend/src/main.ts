@@ -26,7 +26,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: parseCorsOrigins(process.env.CORS_ORIGIN),
-    allowedHeaders: ['Content-Type', 'X-User-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   });
 
@@ -45,15 +45,12 @@ async function bootstrap() {
       .setTitle('健康管理マスター API')
       .setDescription('食事・体調・筋トレ記録の REST API')
       .setVersion('1.0')
-      .addApiKey(
-        {
-          type: 'apiKey',
-          in: 'header',
-          name: 'X-User-Id',
-          description: '開発用ユーザーID（例: 1）',
-        },
-        'X-User-Id',
-      )
+      .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Cognito が発行した Access Token',
+      })
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

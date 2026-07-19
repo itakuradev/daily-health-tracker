@@ -8,11 +8,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiHeader,
+  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
-  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
@@ -20,12 +19,7 @@ import { CurrentUserId } from '../auth/current-user.decorator';
 import { HistoryService } from './history.service';
 
 @ApiTags('history')
-@ApiSecurity('X-User-Id')
-@ApiHeader({
-  name: 'X-User-Id',
-  description: '開発用ユーザーID（例: 1）',
-  required: true,
-})
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('history')
 export class HistoryController {

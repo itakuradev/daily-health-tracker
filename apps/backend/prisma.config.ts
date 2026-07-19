@@ -5,9 +5,10 @@ import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
+  // seed は廃止した。User は Cognito 認証後の初回 API アクセス時に自動作成される
+  // （認証・認可設計書 18.2）。
   migrations: {
     path: "prisma/migrations",
-    seed: "tsx prisma/seed.ts",
   },
   datasource: {
     url: process.env["DATABASE_URL"],
