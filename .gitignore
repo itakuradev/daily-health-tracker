@@ -29,6 +29,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# docs
+docs/aws
+
 # Terraform
 # コミットするもの: *.tf / .terraform.lock.hcl / *.example
 # コミットしないもの: 以下
@@ -38,19 +41,13 @@ Thumbs.db
 *.tfplan
 crash.log
 crash.*.log
+
 # 実値を含む tfvars（*.example は追跡する）
 *.tfvars
 !*.tfvars.example
+
 # ローカル backend 設定（*.example は追跡する）
 backend.hcl
-# .terraform.lock.hcl はコミットするため無視しない
 
-# docs
-docs/aws
-
-# terraform
-terraform-source-review.txt
-bootstrap-plan.txt
-dev-plan-redacted.txt
-dev-plan.txt
-shared-plan.txt
+# Terraform planの確認用テキスト
+infra/terraform/**/*-plan*.txt
