@@ -33,6 +33,9 @@ Thumbs.db
 docs/aws
 terraform-source-review.txt
 
+# CLAUDE
+CLAUDE.md
+
 # Terraform
 # コミットするもの: *.tf / .terraform.lock.hcl / *.example
 # コミットしないもの: 以下
