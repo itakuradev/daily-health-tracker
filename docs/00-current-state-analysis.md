@@ -275,7 +275,7 @@ DB / API:
 ### 11.3 将来設計で検討すべきこと
 
 - Cognito を使うか、独自認証にするか。
-- Cognito を使う場合、User Pool / Hosted UI / Amplify 利用有無をどうするか。
+- Cognito を使う場合、User Pool / Managed Login / Amplify 利用有無をどうするか。
 - JWT を backend でどう検証するか。
 - `User.cognitoSub` と Cognito `sub` をどう紐づけるか。
 - API では `userId` をリクエストから受け取らず、検証済み token から特定する方針にするか。
@@ -649,7 +649,7 @@ E2Eテスト:
 
 - Cognito を使うか。
 - メールアドレス / Google など、どのログイン方式を使うか。
-- User Pool Hosted UI を使うか、自前 UI を作るか。
+- User Pool Managed Login を使うか、自前 UI を作るか。
 - backend で JWT を検証する方針でよいか。
 - `User.cognitoSub` を Cognito の `sub` と紐づける設計でよいか。
 - 初回ログイン時の User レコード作成タイミングをどうするか。

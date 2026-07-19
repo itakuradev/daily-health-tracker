@@ -266,11 +266,11 @@
 
 ## 7. 認証・認可観点
 
-## 7.1 Hosted UI / Amplify Auth
+## 7.1 Managed Login / Amplify Auth
 
 | 観点       | 確認内容                         | 優先度 |
 | -------- | ---------------------------- | --- |
-| ログイン開始   | ログインボタンでHosted UIへ遷移する       | 高   |
+| ログイン開始   | ログインボタンでManaged Loginへ遷移する       | 高   |
 | callback | 認証後にReact SPAへ戻る             | 高   |
 | セッション取得  | Amplify Authで認証済みセッションを取得できる | 高   |
 | token取得  | Access Tokenを取得できる           | 高   |
@@ -443,7 +443,7 @@
 
 | シナリオ  | 確認内容                   | 優先度 |
 | ----- | ---------------------- | --- |
-| ログイン  | Hosted UI経由でログインできる    | 高   |
+| ログイン  | Managed Login経由でログインできる    | 高   |
 | 日次入力  | 日次記録画面で食事・体調・筋トレを保存できる | 高   |
 | 履歴確認  | 保存した日付が履歴画面に表示される      | 高   |
 | 詳細確認  | 履歴画面で保存内容を確認できる        | 高   |
@@ -496,7 +496,7 @@
 | 変更内容        | 確認する観点                            |
 | ----------- | --------------------------------- |
 | Amplify設定変更 | ログイン、callback、token取得、ログアウト       |
-| Cognito設定変更 | Hosted UI、App Client、callback URL |
+| Cognito設定変更 | Managed Login、App Client、callback URL |
 | Guard変更     | 認証必須API、401、User解決                |
 | Userモデル変更   | User作成、cognitoSub一意、既存User取得      |
 

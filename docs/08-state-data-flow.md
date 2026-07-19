@@ -123,12 +123,12 @@ isLoading = false
 理由：
 
 * 認証確認前にログイン画面へ戻してしまう誤判定を防ぐ
-* Hosted UIから戻った直後の認証状態復元を待つため
+* Managed Loginから戻った直後の認証状態復元を待つため
 * リロード時のセッション復元を待つため
 
 ## 4.5 ログイン時の流れ
 
-ログインはCognito Hosted UIへのリダイレクトで行う。
+ログインはCognito Managed Loginへのリダイレクトで行う。
 
 ```text id="login-data-flow"
 ログインボタン押下
@@ -137,7 +137,7 @@ AuthContext.login()
 ↓
 Amplify Auth signInWithRedirect()
 ↓
-Cognito Hosted UIへ遷移
+Cognito Managed Loginへ遷移
 ↓
 Cognitoで認証
 ↓

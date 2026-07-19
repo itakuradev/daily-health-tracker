@@ -1,4 +1,4 @@
-# 健康管理マスター 認証・認可設計書 v0.2
+# 健康管理マスター 認証・認可設計書 v0.3
 
 ## 1. ドキュメントの目的
 
@@ -29,6 +29,20 @@
 | エラー文言・表示        | バリデーション・エラー設計書 |
 | AWS設定・Cognito設定 | AWS構成メモ        |
 | 設計判断の理由         | ADR / 設計判断メモ   |
+
+## 1.1 用語
+
+本書では、Cognitoが提供するホスト型ログイン画面を **Cognito Managed Login（旧Hosted UI）** と表記する。
+
+以降、本書では「Managed Login」に統一する。
+
+```text
+Cognito Managed Login（旧Hosted UI）
+```
+
+AWS側では、新しいホスト型UIが Managed Login として提供されており、本プロジェクトのTerraformでも Managed Login（`managed_login_version = 2`）として構築している。
+
+OAuth 2.0 / OIDC のエンドポイント（`/oauth2/authorize`、`/oauth2/token`、`/oauth2/userInfo`）は旧Hosted UIと共通であり、フロントエンドの実装方式は変わらない。
 
 ---
 
@@ -67,13 +81,13 @@ Cognito User Pool を利用する目的は以下である。
 
 ## 4.1 基本方針
 
-ログイン方式は **Cognito Hosted UI** を採用する。
+ログイン方式は **Cognito Managed Login（旧Hosted UI）** を採用する。
 
 アプリケーション側では、メールアドレス・パスワード入力画面を自作しない。
 
 ```text
 採用する方式:
-React SPA → Cognito Hosted UI → React SPAへ戻る
+React SPA → Cognito Managed Login → React SPAへ戻る
 ```
 
 理由：
@@ -90,7 +104,7 @@ React SPA → Cognito Hosted UI → React SPAへ戻る
 
 | 方式                    | 採用しない理由                                        |
 | --------------------- | ---------------------------------------------- |
-| 独自ログイン画面 + Cognito    | Hosted UIより実装範囲が増えるため、今回は採用しない                 |
+| 独自ログイン画面 + Cognito    | Managed Loginより実装範囲が増えるため、今回は採用しない             |
 | 完全独自JWT認証             | パスワード管理・refresh token管理・失効管理等の責務が重いため、今回は採用しない |
 | BFF + HttpOnly Cookie | セキュリティ上は有力だが、初期実装としては構成が重いため、将来課題とする           |
 
@@ -100,7 +114,7 @@ React SPA → Cognito Hosted UI → React SPAへ戻る
 
 ## 5.1 採用フロー
 
-Cognito Hosted UI では、以下のフローを利用する。
+Cognito Managed Login では、以下のフローを利用する。
 
 ```text
 Authorization Code Grant + PKCE
@@ -117,19 +131,19 @@ PKCEはpublic client向けのAuthorization Code Grant拡張であり、認可コ
 sequenceDiagram
   participant User as 利用者
   participant FE as React SPA
-  participant Cognito as Cognito Hosted UI
+  participant Cognito as Cognito Managed Login
   participant BE as NestJS API
   participant DB as DB
 
   User->>FE: ログインボタン押下
-  FE->>Cognito: Hosted UIへリダイレクト
+  FE->>Cognito: Managed Loginへリダイレクト
   Cognito-->>User: ログイン画面表示
   User->>Cognito: 認証情報入力
   Cognito-->>FE: 認証後callback URLへリダイレクト
   FE->>FE: Amplify Authが認証セッションを取得
   FE->>BE: Authorization: Bearer access_token
-  BE->>BE: Cognito JWT検証
-  BE->>DB: cognitoSubでUser検索
+  BE->>BE: Cognito JWT検証（Guard）
+  BE->>DB: cognitoSubでUser検索（User解決Service）
   DB-->>BE: User
   BE-->>FE: APIレスポンス
 ```
@@ -140,20 +154,23 @@ sequenceDiagram
 
 ## 6.1 採用ライブラリ
 
-フロントエンドでは **Amplify Auth** を利用する。
+フロントエンドでは **Amplify Auth v6**（`aws-amplify` パッケージの `aws-amplify/auth`）を利用する。
 
 Amplify Auth の役割は以下である。
 
-* Cognito Hosted UIへのリダイレクト
-* Hosted UIから戻った後の認証状態取得
+* Cognito Managed Loginへのリダイレクト
+* Managed Loginから戻った後の認証コード交換とセッション確立
+* 認証状態の取得
 * 認証済みユーザー情報の取得
 * access token / ID token の取得
-* セッション更新
+* token更新（refresh）
 * サインアウト処理
+
+PKCEのcode_verifier生成・保持・検証はAmplify Auth側が担う。アプリケーション側でPKCEを自作しない。
 
 ## 6.2 ログイン開始
 
-ログインボタン押下時は、Amplify AuthからCognito Hosted UIへリダイレクトする。
+ログインボタン押下時は、Amplify AuthからCognito Managed Loginへリダイレクトする。
 
 実装イメージ：
 
@@ -176,6 +193,23 @@ const session = await fetchAuthSession();
 const accessToken = session.tokens?.accessToken?.toString();
 ```
 
+## 6.4 認証状態は3値で扱う
+
+フロントエンドの認証状態は、真偽値2値ではなく **3値** で扱う。
+
+```text
+loading         … セッション復元中／callback処理中（判定不能）
+authenticated   … 認証済み
+unauthenticated … 未認証
+```
+
+理由：
+
+Amplify Authによるセッション復元とcallbackのコード交換は非同期である。
+これを`loading`として区別せず「未認証」とみなすと、ページリロード時やcallback処理中に、認証済みであってもログイン画面へリダイレクトされてしまう。
+
+そのため、`loading`の間は画面遷移の判定を行わず、待機する（詳細は「12. 画面アクセス制御」を参照）。
+
 ---
 
 ## 7. 利用するtoken
@@ -191,6 +225,26 @@ Cognito認証後に取得する主なtokenは以下である。
 API認証には **Access Token** を利用する。
 
 ID Tokenはユーザー属性や個人情報を含み得るため、API認可のためには利用しない。
+またID Tokenをバックエンドへ送信しない。
+
+## 7.1 Access Tokenのclaimに関する前提
+
+CognitoのAccess Tokenには、標準では `email` や `name` が含まれない。
+
+含まれる主なclaimは以下である。
+
+```text
+sub
+token_use   （access）
+scope
+client_id
+username
+exp / iat
+```
+
+そのため、**バックエンドはAccess Tokenから email / name を取得できることを前提にしない**。
+
+初回ユーザー作成時にemail / nameが必要な場合は、UserInfoエンドポイントから取得する（「10.3 初回ログイン時のUser作成」を参照）。
 
 ---
 
@@ -219,9 +273,33 @@ Authorization: Bearer <access_token>
 
 以下のAPIは認証不要とする。
 
-* ヘルスチェックAPI
-* Cognito Hosted UIからのcallbackを受けるフロントエンドルート
+* ヘルスチェックAPI（`GET /api/health`）
+* Cognito Managed Loginからのcallbackを受けるフロントエンドルート
 * 公開される静的ファイル
+
+ヘルスチェックAPIは、ALBのヘルスチェックから認証情報なしで呼ばれるため、必ず認証不要のまま維持する。
+
+## 8.4 開発用ヘッダーの廃止
+
+初期のローカル開発では、仮認証として `X-User-Id` ヘッダーでユーザーを指定していた。
+
+Cognito導入にあたり、**`X-User-Id` は完全に撤去する**。
+
+```text
+撤去対象:
+X-User-Id ヘッダー
+X-User-Id を前提とした仮AuthGuard
+X-User-Id を送信するフロントエンドAPI client
+X-User-Id 前提のSwagger定義
+```
+
+ローカル開発においても実際のCognitoを利用する。認証を迂回する経路を残さない。
+
+理由：
+
+* 認証を迂回するヘッダーが本番環境へ混入するリスクを避ける
+* ローカルとAWS上で認証経路を同一にし、環境差による不具合を防ぐ
+* Callback URL `http://localhost:5173/` はCognito側に登録済みで、ローカルからでもManaged Loginを利用できる
 
 ---
 
@@ -258,6 +336,27 @@ User.cognitoSub
 ↓
 User.id
 ```
+
+## 9.4 Guardの責務を限定する
+
+認証Guardの責務は、**Access Tokenの検証と、検証済みclaimの取り出しまで**とする。
+
+Guardには以下を直接実装しない。
+
+```text
+Guardに直接書かないもの:
+Prisma（DB）へのアクセス
+UserInfoエンドポイントの呼び出し
+User作成ロジック
+```
+
+これらはUser解決を担う専用Service（「10.4 User解決Service」）へ分離し、Guardはそれを呼び出すだけにする。
+
+理由：
+
+* Guardが認証・DB・外部API呼び出しを兼ねると責務が肥大化し、単体テストが困難になる
+* JWT検証ロジックとUser解決ロジックを独立して差し替え・テストできるようにする
+* 将来JWT検証をAPI Gateway等へ移す場合に、User解決処理を再利用できる
 
 ---
 
@@ -306,17 +405,87 @@ flowchart TD
 * Cognito側のユーザーとアプリDBのUserを同期する実装をシンプルにできる
 * Cognitoトリガー等を使うより初期実装の範囲を抑えられる
 
-User作成時に保存する候補は以下。
+### email / name の取得元
 
-| 項目         | 内容                               |
-| ---------- | -------------------------------- |
-| cognitoSub | Cognitoのsub                      |
-| email      | ID TokenまたはUserInfoから取得するメールアドレス |
-| name       | 取得できる場合のみ保存                      |
-| createdAt  | 作成日時                             |
-| updatedAt  | 更新日時                             |
+Access Tokenには email / name が含まれないため（「7.1」を参照）、**UserInfoエンドポイントから取得する**。
 
-emailやnameの取得元、必須/任意、更新タイミングはデータ項目定義書で扱う。
+```text
+Access Token
+↓
+GET {Cognito domain}/oauth2/userInfo
+Authorization: Bearer <access_token>
+↓
+sub / email / name
+```
+
+UserInfoの呼び出しは、**Userが存在しない初回のみ**行う。通常のAPIリクエストごとには実行しない。
+
+この方式では、バックエンドからCognitoの公開UserInfoエンドポイントへ外向きHTTPS通信が必要になる。
+
+User作成時に保存する項目は以下。
+
+| 項目         | 内容                       | 必須/任意 |
+| ---------- | ------------------------ | ----- |
+| cognitoSub | Cognitoのsub              | 必須    |
+| email      | UserInfoから取得するメールアドレス    | 必須    |
+| name       | UserInfoから取得できる場合のみ保存    | 任意    |
+| createdAt  | 作成日時                     | 必須    |
+| updatedAt  | 更新日時                     | 必須    |
+
+emailが取得できない場合は、**架空の値を保存せずエラーとして扱う**（User作成を行わない）。
+
+`name` は取得できない場合を考慮し、DB上でnullableとする。
+
+## 10.4 User解決Service
+
+User解決と初回作成の処理は、**専用のService（User解決Service）へ分離**する。
+
+責務：
+
+```text
+入力: 検証済みAccess Tokenのsub、およびAccess Token本体
+処理:
+  1. cognitoSub でUserを検索
+  2. 存在すればそのUserを返す
+  3. 存在しなければ UserInfo を取得し、Userを作成して返す
+出力: アプリケーションDBのUser
+```
+
+Guardはこのサービスを呼び出すだけとし、DBアクセスや外部API呼び出しを自身で持たない（「9.4」を参照）。
+
+## 10.5 初回作成の冪等性
+
+初回ログイン直後は、画面表示のために**複数のAPIリクエストが同時に発行される**ことがある。
+
+このとき、いずれのリクエストでもUserが未作成であるため、**同一 `cognitoSub` に対するUser作成が並行して走る**可能性がある。
+
+そのため、User作成処理は**冪等**に実装する。
+
+方針：
+
+```text
+1. User.cognitoSub に unique 制約を付与する
+2. 作成時は upsert 相当の処理を用いる
+3. unique制約違反が発生した場合はエラーとせず、
+   既存Userを再取得して返す
+```
+
+DBのunique制約を最終的な整合性の担保とし、アプリケーション側の存在チェックだけに依存しない。
+
+```mermaid
+flowchart TD
+  Start["User解決要求"] --> Find["cognitoSub で検索"]
+  Find --> Exists{"存在する？"}
+  Exists -->|Yes| Return["Userを返す"]
+  Exists -->|No| Fetch["UserInfo取得"]
+  Fetch --> Create["User作成"]
+  Create --> Conflict{"unique制約違反？"}
+  Conflict -->|No| Return
+  Conflict -->|Yes| Refind["既存Userを再取得"]
+  Refind --> Return
+```
+
+この設計により、並列した初回リクエストでもエラーを返さず、重複Userも作成されない。
 
 ---
 
@@ -365,22 +534,46 @@ where: {
 
 ## 12.1 画面ごとの認証要否
 
-| 画面                | 認証要否 | 備考                      |
-| ----------------- | ---- | ----------------------- |
-| ログイン画面            | 不要   | ログイン開始ボタンを表示する          |
-| Cognito Hosted UI | 不要   | Cognitoが提供する認証画面        |
-| Callback処理ルート     | 不要   | Cognito認証後にReact SPAへ戻る |
-| 日次記録画面            | 必要   | 認証済みユーザーのみ              |
-| 履歴画面              | 必要   | 認証済みユーザーのみ              |
-| 未定義ルート            | 不要   | ルーティング方針は画面設計書で扱う       |
+| 画面                   | 認証要否 | 備考                      |
+| -------------------- | ---- | ----------------------- |
+| ログイン画面               | 不要   | ログイン開始ボタンを表示する          |
+| Cognito Managed Login | 不要   | Cognitoが提供する認証画面        |
+| Callback処理           | 不要   | Cognito認証後にReact SPAへ戻る |
+| 日次記録画面               | 必要   | 認証済みユーザーのみ              |
+| 履歴画面                 | 必要   | 認証済みユーザーのみ              |
+| 未定義ルート               | 不要   | ルーティング方針は画面設計書で扱う       |
+
+## 12.1.1 Callback URLの扱い
+
+Cognitoに登録するCallback URLは、ルート（`/`）とする。
+
+```text
+http://localhost:5173/
+```
+
+そのため、**Callback専用ルート（`/callback` 等）は作らない**。
+
+ログイン画面（`/`）がcallbackの受け口を兼ね、Amplify Authが認証コードの交換を処理する。
+交換が完了するまでは `loading` 状態として扱い、完了後に日次記録画面へ遷移する。
+
+理由：
+
+* Cognito側に登録済みのCallback URLと一致し、追加のCognito設定変更が不要
+* ルートが増えず、画面遷移の分岐を単純化できる
+
+将来CloudFrontを導入する場合は、Callback URLを追加登録する（AWS構成メモで管理）。
 
 ## 12.2 未ログイン時の挙動
 
 未ログイン状態で認証必須画面へアクセスした場合は、ログイン画面へ遷移する。
 
+ただし、認証状態が `loading` の間は遷移判定を行わず、待機する（「6.4」を参照）。
+
 ```mermaid
 flowchart TD
-  Access["認証必須画面へアクセス"] --> CheckAuth{"認証済み？"}
+  Access["認証必須画面へアクセス"] --> CheckLoading{"認証状態は loading？"}
+  CheckLoading -->|Yes| Wait["待機（遷移しない）"]
+  CheckLoading -->|No| CheckAuth{"認証済み？"}
   CheckAuth -->|Yes| ShowPage["画面表示"]
   CheckAuth -->|No| RedirectLogin["ログイン画面へ遷移"]
 ```
@@ -401,7 +594,7 @@ flowchart TD
 
 アプリ側のログイン画面は、メールアドレス・パスワード入力フォームを持たない。
 
-ログイン画面には、Cognito Hosted UIへ遷移するためのログインボタンを配置する。
+ログイン画面には、Cognito Managed Loginへ遷移するためのログインボタンを配置する。
 
 画面イメージ：
 
@@ -413,26 +606,28 @@ flowchart TD
 
 ## 13.2 ログイン開始
 
-利用者がログインボタンを押下すると、Amplify Auth経由でCognito Hosted UIへ遷移する。
+利用者がログインボタンを押下すると、Amplify Auth経由でCognito Managed Loginへ遷移する。
 
 ```text
 ログインボタン押下
 ↓
 signInWithRedirect()
 ↓
-Cognito Hosted UI
+Cognito Managed Login
 ```
 
 ## 13.3 ログイン成功後の遷移
 
-ログイン成功後は、Cognitoのcallback URLを経由してReact SPAへ戻る。
+ログイン成功後は、Cognitoのcallback URL（`/`）を経由してReact SPAへ戻る。
 
-React SPA側で認証状態を確認し、日次記録画面へ遷移する。
+React SPA側でAmplify Authが認証コードを交換し、セッション確立後に日次記録画面へ遷移する。
 
 ```text
-Cognito callback
+Cognito callback（/）
 ↓
-React SPA
+React SPA（loading: コード交換中）
+↓
+認証状態確立
 ↓
 /daily
 ```
@@ -482,6 +677,11 @@ React SPA
 
 ## 15. Cognito設定方針
 
+Cognito User Pool、App Client、Managed Login Domainは**Terraformで管理**する。
+Cognitoの実ユーザーはTerraformで作成せず、AWSコンソールまたは運用手順から手動作成する。
+
+具体的な設定値・出力値はAWS構成メモ（`11-aws-architecture.md`）およびTerraformコードで管理する。
+
 ## 15.1 User Pool
 
 Cognito User Poolを作成する。
@@ -492,6 +692,8 @@ Cognito User Poolを作成する。
 self sign-up: 無効
 ユーザー作成: Cognito管理画面から手動作成
 ```
+
+Managed Loginを利用するため、User Poolのティアは Essentials 以上とする。
 
 理由：
 
@@ -517,10 +719,12 @@ SPA用のCognito App Clientを作成する。
 
 環境ごとにcallback URL / logout URLを設定する。
 
-| 環境         | Callback URL                              | Logout URL               |
-| ---------- | ----------------------------------------- | ------------------------ |
-| local      | `http://localhost:5173/` または callback用ルート | `http://localhost:5173/` |
-| production | 本番フロントエンドURL                              | 本番フロントエンドURL             |
+| 環境         | Callback URL             | Logout URL               |
+| ---------- | ------------------------ | ------------------------ |
+| local      | `http://localhost:5173/` | `http://localhost:5173/` |
+| production | 本番フロントエンドURL             | 本番フロントエンドURL             |
+
+Callback URLはルート（`/`）とし、専用のcallbackルートは設けない（「12.1.1」を参照）。
 
 具体的なURLはAWS構成メモで管理する。
 
@@ -538,7 +742,7 @@ SPA用のCognito App Clientを作成する。
 
 ## 15.5 パスワードリセット
 
-パスワードリセットはCognito Hosted UIの機能に委ねる。
+パスワードリセットはCognito Managed Loginの機能に委ねる。
 
 アプリケーション側では、パスワードリセット画面を自作しない。
 
@@ -548,7 +752,7 @@ SPA用のCognito App Clientを作成する。
 
 ## 16.1 初期実装方針
 
-初期実装では、Amplify Authの標準的なtoken管理に寄せる。
+初期実装では、Amplify Auth v6の標準的なtoken管理に寄せる。
 
 初期実装では、以下を優先する。
 
@@ -599,10 +803,38 @@ SPA用のCognito App Clientを作成する。
 
 画面側の扱い：
 
-* 認証状態を再確認する
-* 必要に応じて認証状態を破棄する
+* token更新を試みたうえで、1回だけ再試行する
+* 再試行しても401の場合は認証状態を破棄する
 * ログイン画面へ遷移する
 * 必要に応じて「再ログインしてください」と表示する
+
+### 401時のリトライ方針
+
+APIが401を返した場合、フロントエンドは次の手順で処理する。
+
+```text
+1. APIが401を返す
+2. fetchAuthSession({ forceRefresh: true }) でtokenを強制更新
+3. 更新後のAccess Tokenで、同一リクエストを1回だけ再試行
+4. 再試行も401 → ログアウト処理を行いログイン画面へ遷移
+```
+
+方針：
+
+* 再試行は**1回のみ**とする（無限リトライ・リトライループを避ける）
+* 再試行対象は401のみとし、403や5xxは再試行しない
+* 再試行してもなお401の場合は、回復不能とみなしログアウトする
+
+```mermaid
+flowchart TD
+  Req["APIリクエスト"] --> Res{"401？"}
+  Res -->|No| Done["正常処理"]
+  Res -->|Yes| Retried{"すでに再試行済み？"}
+  Retried -->|Yes| Logout["ログアウト → ログイン画面"]
+  Retried -->|No| Refresh["forceRefresh でtoken更新"]
+  Refresh --> Retry["同一リクエストを1回再試行"]
+  Retry --> Res
+```
 
 ## 17.2 403 Forbidden
 
@@ -631,22 +863,51 @@ SPA用のCognito App Clientを作成する。
 
 認証・認可に関わるUserデータは以下の考え方で扱う。
 
-| 項目         | 用途                   |
-| ---------- | -------------------- |
-| id         | アプリケーション内部のユーザーID    |
-| cognitoSub | Cognitoユーザーを識別する外部ID |
-| email      | ユーザーのメールアドレス         |
-| name       | 表示名                  |
-| createdAt  | 作成日時                 |
-| updatedAt  | 更新日時                 |
+| 項目         | 用途                   | 必須/任意 |
+| ---------- | -------------------- | ----- |
+| id         | アプリケーション内部のユーザーID    | 必須    |
+| cognitoSub | Cognitoユーザーを識別する外部ID | 必須    |
+| email      | ユーザーのメールアドレス         | 必須    |
+| name       | 表示名                  | 任意    |
+| createdAt  | 作成日時                 | 必須    |
+| updatedAt  | 更新日時                 | 必須    |
 
 基本方針：
 
 * 記録データは内部の `User.id` に紐づける
 * Cognitoとの紐づけには `cognitoSub` を使う
-* `cognitoSub` は一意とする
+* `cognitoSub` は**必須かつ一意**とする
+* `name` はUserInfoで取得できない場合を考慮し**nullable**とする
 * emailは表示・識別補助として扱う
 * emailだけを主キー的に扱わない
+
+## 18.1 Cognito導入に伴うschema変更
+
+現行のPrisma schemaは本方針とずれているため、Cognito導入時にmigrationを行う。
+
+```text
+現状:
+name       String   （必須）
+cognitoSub String?  （任意）
+
+Cognito導入後:
+name       String?  （UserInfoで取得できない場合を考慮しnullable）
+cognitoSub String   （認証済みUserに対して必須・unique）
+```
+
+`cognitoSub` のunique制約は、初回User作成の冪等性を担保するためにも必要である（「10.5」を参照）。
+
+## 18.2 固定seedユーザーの廃止
+
+`cognitoSub` を持たない固定seedユーザー（開発用ユーザー）は**廃止する**。
+
+理由：
+
+* `cognitoSub` が必須になるため、Cognitoに紐づかないUserは整合しない
+* 実ユーザーは初回APIアクセス時に自動作成されるため、事前投入が不要になる
+* 認証を経ないUserが残ると、データ分離の検証が曖昧になる
+
+記録データのサンプル投入が必要な場合は、Cognitoで認証したUserに対して投入する。
 
 詳細なDB項目、型、必須/任意、unique制約はデータ項目定義書で扱う。
 
@@ -678,16 +939,40 @@ recordDate = 指定された記録日
 認証・認可に関するセキュリティ方針は以下とする。
 
 * パスワードをアプリケーションDBに保存しない
-* ログイン画面はCognito Hosted UIに委ねる
+* ログイン画面はCognito Managed Loginに委ねる
 * client secretをブラウザに持たせない
 * APIではAccess Tokenを検証する
 * ID TokenをAPI認可に利用しない
+* ID Tokenをバックエンドへ送信しない
 * userIdをクライアントから任意に指定させない
 * 認可チェックをフロントエンドだけに依存しない
 * 記録系APIはすべて認証必須とする
+* 認証を迂回する開発用ヘッダー（`X-User-Id`）を残さない
 * CORSは許可するフロントエンドドメインを限定する
+* CORSの許可ヘッダーに `Authorization` を含める
 * 本番環境ではSwagger公開範囲を制限する
 * エラーレスポンスにtokenや内部情報を含めない
+
+## 20.1 Bearer Tokenの通信経路はHTTPSとする
+
+Access Tokenは、**必ずHTTPSで送信する**。
+
+平文HTTPでBearer Tokenを送信すると、通信経路上でtokenを窃取され、そのtokenで他ユーザーになりすましてAPIを呼び出される恐れがある。
+
+そのため、次を原則とする。
+
+```text
+許容する:
+ローカル開発の http://localhost
+（ブラウザ・APIともに同一PC内で完結し、ネットワークを経由しないため）
+
+許容しない:
+AWS上の平文HTTPでAccess Tokenを送信すること
+```
+
+現在のStage 1構成では、ALBがHTTP:80のinternet-facingであり、**この経路でAccess Tokenを流してはならない**。
+
+したがって、AWS上でBearer Tokenを用いた結合試験を行う前に、**HTTPS化を完了させる**必要がある（「22.1 実装ステップと順序」を参照）。
 
 ---
 
@@ -695,11 +980,13 @@ recordDate = 指定された記録日
 
 | 領域                | 主な責務                                                 |
 | ----------------- | ---------------------------------------------------- |
-| Cognito User Pool | ユーザー認証、Hosted UI、token発行、パスワードリセット                   |
-| Amplify Auth      | Hosted UIへのリダイレクト、認証状態取得、token取得、サインアウト              |
-| フロントエンド           | ログイン導線、認証状態管理、Private Route、Authorizationヘッダー付与      |
-| バックエンド            | JWT検証、User解決、認可チェック、currentUser管理                    |
-| DB                | Userと記録データの紐づけ、一意制約                                  |
+| Cognito User Pool | ユーザー認証、Managed Login、token発行、パスワードリセット、UserInfo提供   |
+| Amplify Auth v6   | Managed Loginへのリダイレクト、PKCE、認証状態取得、token取得・更新、サインアウト |
+| フロントエンド           | ログイン導線、認証状態管理（3値）、Private Route、Authorizationヘッダー付与、401時の再試行と失敗時ログアウト |
+| バックエンド Guard      | Access Tokenの検証、検証済みclaimの取り出し（DB・外部APIへ直接アクセスしない）   |
+| バックエンド User解決Service | cognitoSubからのUser解決、UserInfo取得、初回User作成（冪等）         |
+| バックエンド Controller / Service | 認可チェック（`User.id` によるデータ分離）                       |
+| DB                | Userと記録データの紐づけ、`cognitoSub` のunique制約による重複防止        |
 | API設計書            | 認証必須APIの方針整理                                         |
 | フロントエンド設計書        | AuthProvider、Private Route、API client、token取得        |
 | 状態管理・データフロー設計書    | ログイン後・ログアウト後・401後の状態遷移                               |
@@ -712,20 +999,73 @@ recordDate = 指定された記録日
 
 初期実装で行うことは以下。
 
-* Cognito User Poolを作成する
-* Cognito App Clientを作成する
-* Cognito Hosted UIを有効にする
+* Cognito User Poolを作成する（Terraform）
+* Cognito App Clientを作成する（Terraform）
+* Cognito Managed Loginを有効にする（Terraform）
 * Authorization Code Grant + PKCEを利用する
 * client secretを使わない
-* Amplify Authをフロントエンドに導入する
-* ログインボタンからHosted UIへ遷移する
-* ログイン後にReact SPAへ戻る
+* Amplify Auth v6をフロントエンドに導入する
+* ログインボタンからManaged Loginへ遷移する
+* ログイン後にReact SPAへ戻る（callbackは `/`）
 * Amplify AuthからAccess Tokenを取得する
 * API呼び出し時にAuthorizationヘッダーを付与する
 * NestJSバックエンドでCognito JWTを検証する
-* Cognito subからUserを解決する
+* Cognito subからUserを解決する（専用Service・冪等）
+* 初回User作成時にUserInfoからemail / nameを取得する
+* `X-User-Id` を完全撤去する
+* 固定seedユーザーを廃止する
+* `@CurrentUserId()` が `User.id` を返す既存契約を維持する
 * 記録系APIを認証済みUser単位で制御する
+* 401時にtoken更新して1回だけ再試行する
 * ログアウトできるようにする
+
+## 22.1 実装ステップと順序
+
+実装は次の順序で進める。
+
+```text
+Step 0: 設計書修正（本書）
+
+Step B: バックエンド
+  B1 依存追加・環境変数定義
+  B2 Prisma schema migration（cognitoSub必須化・name nullable化・seed廃止）
+  B3 JWT検証の実装
+  B4 Guard差し替え + User解決Service（冪等な初回作成）
+  B5 CORS / Swagger / X-User-Id撤去 / GET /api/me
+  B6 テスト
+
+Step F: フロントエンド
+  F1 Amplify Auth v6導入・設定
+  F2 認証状態を3値で管理するAuthContext
+  F3 API clientのBearer付与・401再試行
+  F4 ログイン画面・callback処理・画面アクセス制御
+  F5 ログアウトと状態破棄
+  F6 ローカル動作確認
+
+Step I: ECS Task DefinitionへCognito環境変数を追加
+
+Step H: HTTPS化           ← Bearer Token結合試験より前に必須
+
+Step V: AWS上での結合確認（Bearer Token疎通）
+```
+
+### Step H（HTTPS化）を結合試験より前に置く理由
+
+Stage 1のALBはHTTP:80であり、この経路でAccess Tokenを送信すると通信経路上でtokenを窃取される恐れがある（「20.1」を参照）。
+
+そのため、**AWS上でBearer Tokenを流す結合試験（Step V）の前に、HTTPS化（Step H）を完了させる**。
+
+Step Hの実現方式は、AWS構成メモのStage 2方針に従う。
+
+```text
+方式候補:
+CloudFront（標準ドメイン・標準証明書）経由でHTTPS化する
+```
+
+独自ドメインを取得しない方針のため、ACM証明書をALBへ設定する構成は採用しない。
+具体的な構成・手順はAWS構成メモ（`11-aws-architecture.md`）で管理する。
+
+Step Hが完了するまでは、認証の動作確認は**ローカル環境（`http://localhost`）で行う**。
 
 ---
 
@@ -781,18 +1121,54 @@ AWS本番構成でAPI Gatewayを導入する場合、JWT検証をAPI Gateway側�
 初期実装では初回APIアクセス時にUserを作成する。
 将来的にユーザー属性同期やサインアップ直後の初期処理が必要になった場合、Cognitoトリガーや専用同期処理を検討する。
 
+## 24.6 Cognitoを日次destroyする運用における残課題
+
+dev環境はコスト抑制のため、日次で `terraform destroy` / `apply` を繰り返す運用を想定している。
+
+現在のTerraform構成では、Cognito User Poolは `environments/dev` に含まれるため、**destroyのたびにUser Poolごと削除される**。
+
+これにより、次の問題が発生する。
+
+```text
+1. User Pool IDが再作成のたびに変わる
+2. App Client IDが再作成のたびに変わる
+3. Issuer URLが変わる
+4. Cognitoの登録ユーザーが消えるため、毎回手動で作り直す必要がある
+5. Cognitoのsubが変わるため、
+   アプリDBの User.cognitoSub と一致しなくなる
+```
+
+特に 5 は、RDSを残したままCognitoだけ作り直した場合に、**旧subのUserが孤児レコードとして残り、新しいsubで別Userが作成される**ことを意味する。
+
+現時点では、以下を前提として許容する。
+
+* dev環境はダミーデータのみを扱う
+* RDSもdestroy対象であるため、通常はDBとCognitoが同時に作り直される
+* 利用者は本人のみで、手動でのユーザー再作成コストが小さい
+
+将来的な対応候補：
+
+| 対応案                                        | 効果                          |
+| ------------------------------------------ | --------------------------- |
+| Cognitoを `shared` root moduleへ移動する          | 日次destroyの対象外となり、ID・ユーザーが保持される |
+| ID・Client IDをTerraform outputから自動で環境変数へ反映する | ID変化への追従を自動化できる             |
+| 初期ユーザー作成をスクリプト化する                          | 手動作成の手間を減らせる                |
+
+ECRを `shared` へ分離したのと同じ考え方で、**Cognitoも永続層へ移す案が有力**である。
+ただし、Cognitoの設定変更を伴う学習を継続する間はdev側に置く利点もあるため、導入時期は別途判断する。
+
 ---
 
 ## 25. 後続設計書への引き継ぎ
 
 | 後続資料           | 引き継ぐ内容                                                         |
 | -------------- | -------------------------------------------------------------- |
-| 画面設計書          | ログイン画面、Hosted UIへの遷移、認証済み/未認証時の画面遷移                            |
-| API設計書         | Authorizationヘッダー前提、認証必須API                                    |
-| フロントエンド設計書     | Amplify Auth、AuthProvider、Private Route、API client、token取得     |
-| 状態管理・データフロー設計書 | 認証状態、API取得状態、401時の状態破棄、ログアウト時のキャッシュ破棄                          |
-| データ項目定義書       | User.cognitoSub、email、name、Userと記録データの関連                       |
+| 画面設計書          | ログイン画面、Managed Loginへの遷移、認証済み/未認証時の画面遷移、loading時の扱い            |
+| API設計書         | Authorizationヘッダー前提、認証必須API、`X-User-Id` 廃止、`GET /api/me`        |
+| フロントエンド設計書     | Amplify Auth v6、AuthProvider（3値）、Private Route、API client、token取得、401再試行 |
+| 状態管理・データフロー設計書 | 認証状態（loading含む）、API取得状態、401時の状態破棄、ログアウト時のキャッシュ破棄                |
+| データ項目定義書       | User.cognitoSub（必須・unique）、email（必須）、name（任意）、Userと記録データの関連    |
 | バリデーション・エラー設計書 | 401 / 403 のエラー形式、画面表示文言                                        |
-| テスト観点表         | 未ログインアクセス、ログイン後アクセス、JWT不正、他ユーザーデータ分離                           |
-| AWS構成メモ        | Cognito User Pool、App Client、Hosted UI、Callback URL、Logout URL |
-| ADR / 設計判断メモ   | Cognito Hosted UI採用、独自認証をしない判断、初期実装でBFFを採用しない判断                |
+| テスト観点表         | 未ログインアクセス、ログイン後アクセス、JWT不正、他ユーザーデータ分離、初回作成の並列実行                 |
+| AWS構成メモ        | Cognito User Pool、App Client、Managed Login、Callback URL、Logout URL、HTTPS化 |
+| ADR / 設計判断メモ   | Cognito Managed Login採用、独自認証をしない判断、初期実装でBFFを採用しない判断           |

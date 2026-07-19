@@ -39,7 +39,7 @@
 | ルーティング  | React Router                   |
 | 認証連携    | Amplify Auth                   |
 | 認証基盤    | Amazon Cognito User Pool       |
-| ログイン画面  | Cognito Hosted UI              |
+| ログイン画面  | Cognito Managed Login              |
 | API通信   | fetchベースの共通API client          |
 | 状態管理    | useState / useEffect / Context |
 | フォーム管理  | useState                       |
@@ -91,7 +91,7 @@ React Routerが表示コンポーネントを切り替える
 
 | 画面     | 主な役割                               |
 | ------ | ---------------------------------- |
-| ログイン画面 | Cognito Hosted UIへ遷移するログインボタンを表示する |
+| ログイン画面 | Cognito Managed Loginへ遷移するログインボタンを表示する |
 | 日次記録画面 | 食事・体調・筋トレ記録を日付単位で入力・保存する           |
 | 履歴画面   | 月次カレンダー、記録あり日付、日次詳細、日次一括削除を扱う      |
 | 未定義ルート | 不正なURLにアクセスした場合の遷移を扱う              |
@@ -191,17 +191,17 @@ type AuthContextValue = {
 
 ## 6.4 ログイン処理
 
-ログイン処理では、Amplify Authを利用してCognito Hosted UIへ遷移する。
+ログイン処理では、Amplify Authを利用してCognito Managed Loginへ遷移する。
 
 ```text id="login-flow"
 login()
 ↓
 signInWithRedirect()
 ↓
-Cognito Hosted UI
+Cognito Managed Login
 ```
 
-ログイン画面自体はCognito Hosted UIが提供するため、React側ではメールアドレス・パスワード入力フォームを持たない。
+ログイン画面自体はCognito Managed Loginが提供するため、React側ではメールアドレス・パスワード入力フォームを持たない。
 
 ## 6.5 ログアウト処理
 
@@ -828,7 +828,7 @@ src/
 | `VITE_API_BASE_URL`                | バックエンドAPIのBase URL       |
 | `VITE_COGNITO_USER_POOL_ID`        | Cognito User Pool ID     |
 | `VITE_COGNITO_USER_POOL_CLIENT_ID` | Cognito App Client ID    |
-| `VITE_COGNITO_DOMAIN`              | Cognito Hosted UI Domain |
+| `VITE_COGNITO_DOMAIN`              | Cognito Managed Login Domain |
 | `VITE_COGNITO_REDIRECT_SIGN_IN`    | ログイン後callback URL        |
 | `VITE_COGNITO_REDIRECT_SIGN_OUT`   | ログアウト後URL                |
 | `VITE_COGNITO_REGION`              | Cognitoのリージョン            |
@@ -870,7 +870,7 @@ SPAでは、Viteの環境変数はビルド後のJavaScriptから参照可能で
 * React Routerによる画面ルーティング
 * PrivateRouteによる認証必須画面の制御
 * Amplify Authの設定
-* Cognito Hosted UIへのログイン導線
+* Cognito Managed Loginへのログイン導線
 * ログアウト処理
 * AuthContextによる認証状態管理
 * API clientの作成
@@ -971,5 +971,5 @@ API取得・保存後再取得・キャッシュ管理が複雑になった場�
 | データ項目定義書       | フォーム項目、API request / response、Form state、型変換             |
 | バリデーション・エラー設計書 | 入力制約、エラー文言、APIエラー表示                                      |
 | テスト観点表         | 画面表示、フォーム入力、API通信、認証状態、エラー表示                             |
-| AWS構成メモ        | Cognito Hosted UI、環境変数、callback URL、logout URL           |
+| AWS構成メモ        | Cognito Managed Login、環境変数、callback URL、logout URL           |
 | ADR / 設計判断メモ   | TanStack Queryを初期導入しない判断、React Hook Form / Zodを将来課題にする判断 |

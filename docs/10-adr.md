@@ -265,7 +265,7 @@ Accepted
 ## 結果・制約
 
 * Cognito固有の設定・用語を理解する必要がある
-* User Pool、App Client、Hosted UIの設定が必要になる
+* User Pool、App Client、Managed Loginの設定が必要になる
 * Cognitoのtoken claimとアプリケーションUserを紐づける必要がある
 * ローカル開発でもCognito環境が必要になる
 
@@ -279,7 +279,10 @@ Accepted
 
 ---
 
-# ADR-004：ログインにはCognito Hosted UIとAuthorization Code Grant + PKCEを利用する
+# ADR-004：ログインにはCognito Managed LoginとAuthorization Code Grant + PKCEを利用する
+
+> 用語について: 本ADRで「Managed Login」と記載しているものは、旧称「Hosted UI」と同一の機能を指す。
+> AWS側の名称変更に伴い、`04-auth-design.md` の「1.1 用語」に従って表記を統一した。決定内容そのものに変更はない。
 
 ## ステータス
 
@@ -299,7 +302,7 @@ Accepted
 
 | 選択肢               | 内容                      |
 | ----------------- | ----------------------- |
-| Cognito Hosted UI | Cognitoが提供するログイン画面を利用する |
+| Cognito Managed Login | Cognitoが提供するログイン画面を利用する |
 | 独自UI + Cognito    | React側でログイン画面を作成する      |
 | BFF経由のログイン        | NestJS経由でCognito認証を行う   |
 
@@ -309,7 +312,7 @@ Accepted
 
 ```text
 ログイン画面:
-Cognito Hosted UI
+Cognito Managed Login
 
 OAuthフロー:
 Authorization Code Grant + PKCE
@@ -334,7 +337,7 @@ Client Secret:
 
 ## 結果・制約
 
-* ログイン時にCognito Hosted UIへ画面遷移する
+* ログイン時にCognito Managed Loginへ画面遷移する
 * ログイン画面のデザイン自由度は低くなる
 * Callback URLとLogout URLを環境ごとに設定する必要がある
 * 独自ログイン画面の実装経験は今回得られない
@@ -344,7 +347,7 @@ Client Secret:
 以下の場合は独自UIを再検討する。
 
 * ログイン画面のブランド・UX要件が強くなる
-* Hosted UIでは実現できない画面制御が必要になる
+* Managed Loginでは実現できない画面制御が必要になる
 * 認証フローをアプリ内で完結させる必要がある
 
 ---
@@ -1062,7 +1065,7 @@ BFF + HttpOnly Cookieは将来課題とする。
 
 ## 理由
 
-* Cognito Hosted UIとAmplify Authを短期間で連携できる
+* Cognito Managed LoginとAmplify Authを短期間で連携できる
 * token更新処理を自作しなくてよい
 * 初期実装を素早く完成させられる
 * 認証以外のアプリケーション設計に集中できる
@@ -1154,7 +1157,7 @@ Cognito管理画面から手動作成
 | ADR-001 | React SPAとNestJS APIを分離する                  | Accepted |
 | ADR-002 | REST APIとSwagger / OpenAPIを採用する            | Accepted |
 | ADR-003 | 認証基盤にCognito User Poolを採用する                | Accepted |
-| ADR-004 | Hosted UI + Authorization Code + PKCEを採用する | Accepted |
+| ADR-004 | Managed Login + Authorization Code + PKCEを採用する | Accepted |
 | ADR-005 | API認証にCognito Access Tokenを利用する            | Accepted |
 | ADR-006 | Cognito subとUserを紐づける                      | Accepted |
 | ADR-007 | 初回APIアクセス時にUserを作成する                       | Accepted |

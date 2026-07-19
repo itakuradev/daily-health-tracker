@@ -156,12 +156,12 @@ Stage 2でもECS Taskは当面Public Application Subnetに残し、internal ALB�
 
 ALBはターゲットへprivate IPで通信するため、ECSが別Subnetにあっても接続できる。
 
-認証にはCognito User PoolとCognito Hosted UIを利用する。
+認証にはCognito User PoolとCognito Managed Loginを利用する。
 
 ```text
 Browser
   ↓
-Cognito Hosted UI
+Cognito Managed Login
   ↓ Authorization Code + PKCE
 React SPA
   ↓ Authorization: Bearer <access_token>
@@ -262,7 +262,7 @@ AWS
 ├── Cognito
 │   ├── User Pool
 │   ├── App Client
-│   └── Hosted UI
+│   └── Managed Login
 │
 ├── ECR
 │   └── Backend Docker image
@@ -1058,7 +1058,7 @@ Retention:
 * Authorizationヘッダー
 * DBパスワード
 * DATABASE_URL全文
-* Cognito Hosted UIの認証コード
+* Cognito Managed Loginの認証コード
 * 健康記録の詳細本文
 * 個人情報
 
@@ -1090,7 +1090,7 @@ Container Insightsは初期実装では無効とする。
 
 ## 20. Cognito設計
 
-Cognito User Pool、App Client、User Pool Domain（Hosted UI）は、Stage 1 + Cognitoの範囲としてTerraformで管理する。
+Cognito User Pool、App Client、User Pool Domain（Managed Login）は、Stage 1 + Cognitoの範囲としてTerraformで管理する。
 
 Cognitoの実ユーザーはTerraformで作成せず、AWSコンソールまたは運用手順から管理者が手動作成する。
 
@@ -1124,11 +1124,13 @@ PKCE:
 利用
 ```
 
-## 20.3 Hosted UI
+## 20.3 Managed Login
 
-ログイン画面にはCognito Hosted UIを使用する。
+ログイン画面にはCognito Managed Login（旧Hosted UI）を使用する。
 
 Cognitoが提供するドメインを使用し、独自ドメインは作成しない。
+
+Terraformでは、User Pool DomainへManaged Login（`managed_login_version = 2`）を設定し、Cognito提供の既定スタイルを利用する。用語の定義は`04-auth-design.md`の「1.1 用語」に従う。
 
 ## 20.4 Callback URL
 
@@ -1935,11 +1937,11 @@ Prisma migrationは、現行Dockerfileの起動コマンドにより最初のECS
 
 ## 33.2 Stage 2
 
-Cognito User Pool / App Client / Hosted UI Domainは、Stage 1 + Cognitoの範囲として既にTerraform管理へ前倒しした（下記AWS-13）。Stage 2ではこれらを前提に、Backendの JWT検証以降を進める。
+Cognito User Pool / App Client / Managed Login Domainは、Stage 1 + Cognitoの範囲として既にTerraform管理へ前倒しした（下記AWS-13）。Stage 2ではこれらを前提に、Backendの JWT検証以降を進める。
 
 ```text
 AWS-13:（Stage 1 + Cognitoで実施済み）
-Cognito User Pool / App Client / Hosted UI Domain（Terraform管理）
+Cognito User Pool / App Client / Managed Login Domain（Terraform管理）
 
 AWS-14:
 Backend JWT検証
@@ -2000,7 +2002,7 @@ Terraform化はAWS-23として後回しにせず、Stage 1からAWS構築の主�
 * `/daily` や `/history` への直接アクセスが成功する
 * `/api/*` がCloudFrontからBackendへ転送される
 * ALBがinternalである
-* Cognito Hosted UIでログインできる
+* Cognito Managed Loginでログインできる
 * Authorization Code + PKCEが動作する
 * Access TokenでAPIを呼び出せる
 * Cognito `sub` からUserを特定できる
@@ -2072,7 +2074,7 @@ Terraform化はAWS-23として後回しにせず、Stage 1からAWS構築の主�
 | ドキュメント                          | 関連内容                                     |
 | ------------------------------- | ---------------------------------------- |
 | `03-api-design.md`              | ALB、CloudFront、API path、認証方式             |
-| `04-auth-design.md`             | Cognito User Pool、Hosted UI、Access Token |
+| `04-auth-design.md`             | Cognito User Pool、Managed Login、Access Token |
 | `05-frontend-design.md`         | S3、CloudFront、環境変数、API Base URL          |
 | `06-data-items.md`              | User、cognitoSub、DB項目                     |
 | `07-validation-error-design.md` | APIエラー、認証エラー                             |
