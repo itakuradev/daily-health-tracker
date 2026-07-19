@@ -25,9 +25,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
-    const ctx      = host.switchToHttp();
+    const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request  = ctx.getRequest<Request>();
+    const request = ctx.getRequest<Request>();
 
     const status =
       exception instanceof HttpException
@@ -51,10 +51,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
-      error:      HttpStatus[status] ?? 'UNKNOWN',
+      error: HttpStatus[status] ?? 'UNKNOWN',
       message,
-      path:       request.url,
-      timestamp:  new Date().toISOString(),
+      path: request.url,
+      timestamp: new Date().toISOString(),
     });
   }
 }

@@ -14,10 +14,14 @@ export class HistoryService {
    * カレンダーの丸マーク表示に使用する。
    * 返り値例: ["2026-07-01", "2026-07-03", "2026-07-04"]
    */
-  async getMonthlyDates(userId: number, year: number, month: number): Promise<string[]> {
+  async getMonthlyDates(
+    userId: number,
+    year: number,
+    month: number,
+  ): Promise<string[]> {
     // 月の開始・終了を UTC で算出
     const from = new Date(Date.UTC(year, month - 1, 1));
-    const to   = new Date(Date.UTC(year, month, 1)); // 翌月1日（exclusive）
+    const to = new Date(Date.UTC(year, month, 1)); // 翌月1日（exclusive）
 
     const [meals, conditions, workouts] = await Promise.all([
       this.prisma.meal.findMany({

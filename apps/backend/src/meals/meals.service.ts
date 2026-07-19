@@ -30,11 +30,11 @@ export class MealsService {
 
     const data = {
       calories: dto.calories ?? null,
-      protein:  dto.protein  ?? null,
-      fat:      dto.fat      ?? null,
-      carbs:    dto.carbs    ?? null,
-      calcium:  dto.calcium  ?? null,
-      memo:     dto.memo     ?? null,
+      protein: dto.protein ?? null,
+      fat: dto.fat ?? null,
+      carbs: dto.carbs ?? null,
+      calcium: dto.calcium ?? null,
+      memo: dto.memo ?? null,
     };
 
     return this.prisma.meal.upsert({

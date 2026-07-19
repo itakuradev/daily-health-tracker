@@ -6,7 +6,10 @@ export class UpsertWorkoutDto {
   @IsDateString()
   date: string;
 
-  @ApiPropertyOptional({ example: 'スクワット 3×10、腕立て 3×15', description: 'トレーニングメモ' })
+  @ApiPropertyOptional({
+    example: 'スクワット 3×10、腕立て 3×15',
+    description: 'トレーニングメモ',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)

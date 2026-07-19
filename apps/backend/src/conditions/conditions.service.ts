@@ -25,11 +25,11 @@ export class ConditionsService {
     const recordDate = this.toRecordDate(dto.date);
 
     const data = {
-      weight:           dto.weight           ?? null,
-      waist:            dto.waist            ?? null,
+      weight: dto.weight ?? null,
+      waist: dto.waist ?? null,
       armCircumference: dto.armCircumference ?? null,
-      sleepHours:       dto.sleepHours       ?? null,
-      conditionScore:   dto.conditionScore   ?? null,
+      sleepHours: dto.sleepHours ?? null,
+      conditionScore: dto.conditionScore ?? null,
     };
 
     return this.prisma.condition.upsert({

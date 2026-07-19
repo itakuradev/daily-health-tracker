@@ -8,7 +8,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { WorkoutsModule } from './workouts/workouts.module';
 
 @Module({
-  imports: [PrismaModule, MealsModule, ConditionsModule, WorkoutsModule, HistoryModule],
+  imports: [
+    PrismaModule,
+    MealsModule,
+    ConditionsModule,
+    WorkoutsModule,
+    HistoryModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

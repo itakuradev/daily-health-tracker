@@ -13,7 +13,9 @@ import {
 @Injectable()
 export class AuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<{ headers: Record<string, string>; userId: number }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string>; userId: number }>();
     const raw = request.headers['x-user-id'];
 
     if (!raw) {
