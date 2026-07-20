@@ -31,6 +31,8 @@ Thumbs.db
 
 # docs
 docs/aws
+docs/nestjs
+docs/typescript
 terraform-source-review.txt
 
 # CLAUDE
