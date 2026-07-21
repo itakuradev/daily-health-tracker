@@ -1,4 +1,9 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard';
 import type { CognitoJwtVerifierService } from './cognito-jwt.verifier';
 import type { UserResolverService } from './user-resolver.service';
@@ -90,6 +95,47 @@ describe('AuthGuard', () => {
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         new UnauthorizedException(),
+      );
+    });
+  });
+
+  describe('外部障害・内部エラーを 401 へ変換しない', () => {
+    it('verify() が 503 を送出した場合はそのまま 503 とする（401 化しない）', async () => {
+      verifier.verify.mockRejectedValue(new ServiceUnavailableException());
+      const { context } = contextWith(`Bearer ${TOKEN}`);
+
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      // 検証で止まり、User 解決には進まない
+      expect(userResolver.resolve).not.toHaveBeenCalled();
+    });
+
+    it('verify() が予期しない例外を送出した場合は握りつぶさず伝播する（500）', async () => {
+      const unexpected = new Error('unexpected boom');
+      verifier.verify.mockRejectedValue(unexpected);
+      const { context } = contextWith(`Bearer ${TOKEN}`);
+
+      await expect(guard.canActivate(context)).rejects.toBe(unexpected);
+      expect(userResolver.resolve).not.toHaveBeenCalled();
+    });
+
+    it('User 解決 Service が送出した 503 を 401 へ変換しない', async () => {
+      verifier.verify.mockResolvedValue({ sub: SUB });
+      userResolver.resolve.mockRejectedValue(new ServiceUnavailableException());
+      const { context } = contextWith(`Bearer ${TOKEN}`);
+
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('InternalServerErrorException も 401 へ変換しない', async () => {
+      verifier.verify.mockRejectedValue(new InternalServerErrorException());
+      const { context } = contextWith(`Bearer ${TOKEN}`);
+
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+        InternalServerErrorException,
       );
     });
   });
