@@ -1,28 +1,133 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { createApiClient } from '../utils/apiClient';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import { fetchAuthSession, signInWithRedirect, signOut } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { setUnauthorizedHandler } from '../utils/apiClient';
+import type { AuthUser } from '../types/api';
 
 interface AuthContextValue {
-  isLoggedIn: boolean;
-  userId: number | null;
-  /** 開発用: userId=1 で固定ログイン */
-  login: () => void;
-  logout: () => void;
-  /** ログイン済みの場合のみ有効な apiClient */
-  api: ReturnType<typeof createApiClient> | null;
+  /** 認証済みかどうか */
+  isAuthenticated: boolean;
+  /** 認証状態確認中かどうか（セッション復元中／callback処理中） */
+  isLoading: boolean;
+  /** 認証済みユーザー情報（画面表示用） */
+  currentUser: AuthUser | null;
+  /** Cognito Managed Login へのリダイレクトを開始する */
+  login: () => Promise<void>;
+  /** サインアウトし、認証状態を破棄する */
+  logout: () => Promise<void>;
+  /** 認証状態を再確認する */
+  refreshAuthState: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserId] = useState<number | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  const login = () => setUserId(1);
-  const logout = () => setUserId(null);
+  /**
+   * Amplify Auth から現在の認証状態を確認する（認証・認可設計書 6.4）。
+   *
+   * Access Token があれば認証済みとし、表示用の属性は ID Token の claim
+   * （email / name）から取り出す。ID Token はバックエンドへ送らず、
+   * フロントでのユーザー属性参照のみに使う（認証・認可設計書 7）。
+   */
+  const refreshAuthState = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const session = await fetchAuthSession();
+      const accessToken = session.tokens?.accessToken;
 
-  const api = userId !== null ? createApiClient(userId) : null;
+      if (!accessToken) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        return;
+      }
+
+      const idPayload = session.tokens?.idToken?.payload;
+      const sub =
+        (idPayload?.sub as string | undefined) ??
+        (accessToken.payload.sub as string);
+      const email = (idPayload?.email as string | undefined) ?? null;
+      const name = (idPayload?.name as string | undefined) ?? null;
+
+      setCurrentUser({ sub, email, name });
+      setIsAuthenticated(true);
+    } catch {
+      // セッション取得に失敗した場合は未認証として扱う
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const login = useCallback(async () => {
+    await signInWithRedirect();
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      // Cognito からサインアウトする（Managed Login のログアウトを経由し、
+      // logout URL へ戻る）。取得済みデータ・フォーム状態は画面遷移で破棄される
+      // （認証・認可設計書 14）。
+      await signOut();
+    } finally {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    }
+  }, []);
+
+  // 起動時の認証状態確認と、callback / サインイン・サインアウトの検知。
+  useEffect(() => {
+    void refreshAuthState();
+
+    const unsubscribe = Hub.listen('auth', ({ payload }) => {
+      switch (payload.event) {
+        case 'signedIn':
+        case 'signedOut':
+        case 'tokenRefresh':
+          void refreshAuthState();
+          break;
+        case 'signInWithRedirect_failure':
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          setIsLoading(false);
+          break;
+      }
+    });
+
+    return unsubscribe;
+  }, [refreshAuthState]);
+
+  // 401 再試行後もなお認証切れだった場合にログアウトする
+  // （apiClient は Context に依存しないためハンドラを登録する）。
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void logout();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: userId !== null, userId, login, logout, api }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        isLoading,
+        currentUser,
+        login,
+        logout,
+        refreshAuthState,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

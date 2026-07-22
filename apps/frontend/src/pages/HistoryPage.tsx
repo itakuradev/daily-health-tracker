@@ -31,7 +31,12 @@ export default function HistoryPage() {
 
   const { recordedDates, fetchDaily, deleteDaily } = useHistory(year, month);
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = () => {
+    void (async () => {
+      await logout();
+      navigate('/');
+    })();
+  };
 
   // カレンダーの月が切り替わったとき
   const handleActiveStartDateChange = ({ activeStartDate }: { activeStartDate: Date | null }) => {

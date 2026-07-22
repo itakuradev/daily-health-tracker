@@ -742,21 +742,29 @@ type PageError = string | null;
 
 ## 16.1 401 Unauthorized
 
-401が発生した場合は、認証状態を再確認し、必要に応じてログイン画面へ遷移する。
+401が発生した場合は、apiClientがtokenを強制更新して同一リクエストを1回だけ再試行する。
+再試行してもなお401なら、回復不能とみなしログアウトする（認証・認可設計書 17.1）。
 
 ```text id="unauthorized-flow"
 API response 401
 ↓
-apiClientがApiErrorへ変換
+apiClientが fetchAuthSession({ forceRefresh: true }) でtoken更新
 ↓
-画面または共通処理で認証状態を再確認
+更新後のAccess Tokenで同一リクエストを1回だけ再試行
 ↓
-未認証ならAuthContextを初期化
+再試行も401
+↓
+AuthContextを初期化（signOut）
 ↓
 ログイン画面へ遷移
 ```
 
-初期実装では、401発生時の自動再試行は行わない。
+方針：
+
+* 再試行は1回のみとする（無限リトライを避ける）
+* 再試行対象は401のみとし、403・5xxは再試行しない
+* 5xx（Cognito UserInfo / JWKS取得などの外部障害。認証・認可設計書 17.4 / 17.6）は
+  認証切れとして扱わず、ログアウトしない
 
 ## 16.2 403 Forbidden
 

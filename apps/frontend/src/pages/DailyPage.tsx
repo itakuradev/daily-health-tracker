@@ -7,13 +7,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { getTodayRecordDate } from '../utils/recordDate';
 
 export default function DailyPage() {
-  const { userId, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [date, setDate] = useState(getTodayRecordDate);
 
   const handleLogout = () => {
-    logout();
-    navigate('/');
+    void (async () => {
+      await logout();
+      navigate('/');
+    })();
   };
 
   const handleTodayClick = () => setDate(getTodayRecordDate());
@@ -45,7 +47,7 @@ export default function DailyPage() {
           <button style={s.todayButton} onClick={handleTodayClick}>
             今日
           </button>
-          <span style={s.userId}>ユーザーID: {userId}</span>
+          <span style={s.userId}>{currentUser?.name ?? currentUser?.email ?? ''}</span>
         </div>
 
         <div style={s.grid}>

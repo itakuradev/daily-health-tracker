@@ -33,6 +33,8 @@ Thumbs.db
 docs/aws
 docs/nestjs
 docs/typescript
+docs/react
+docs/auth
 terraform-source-review.txt
 
 # CLAUDE

@@ -1,3 +1,11 @@
+/** フロントエンド上で扱う認証済みユーザー情報（データ項目定義書 13章） */
+export interface AuthUser {
+  /** Cognito の sub */
+  sub: string;
+  email: string | null;
+  name: string | null;
+}
+
 /** 食事記録（API レスポンス） */
 export interface MealRecord {
   id: number;
