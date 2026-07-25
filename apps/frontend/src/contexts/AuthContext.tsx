@@ -3,12 +3,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { fetchAuthSession, signInWithRedirect, signOut } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
-import { setUnauthorizedHandler } from '../utils/apiClient';
+import { resetAuthClientState, setUnauthorizedHandler } from '../utils/apiClient';
 import type { AuthUser } from '../types/api';
 
 interface AuthContextValue {
@@ -74,16 +75,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithRedirect();
   }, []);
 
+  // 実行中のログアウト処理。複数リクエストからの同時呼び出しを1回に集約する。
+  const logoutInFlight = useRef<Promise<void> | null>(null);
+
   const logout = useCallback(async () => {
-    try {
-      // Cognito からサインアウトする（Managed Login のログアウトを経由し、
-      // logout URL へ戻る）。取得済みデータ・フォーム状態は画面遷移で破棄される
-      // （認証・認可設計書 14）。
-      await signOut();
-    } finally {
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-    }
+    // すでにログアウト処理中なら、同じ処理を共有して signOut を多重実行しない。
+    if (logoutInFlight.current) return logoutInFlight.current;
+
+    const run = (async () => {
+      try {
+        // Cognito からサインアウトする（Managed Login のログアウトを経由し、
+        // logout URL へ戻る）。取得済みデータ・フォーム状態は画面遷移で破棄される
+        // （認証・認可設計書 14）。
+        // redirect 型の signOut ではブラウザが遷移し、この Promise は解決前に
+        // ページがアンロードされる場合がある。その場合は次回ロード時に状態が初期化される。
+        await signOut();
+      } finally {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        // apiClient 側のログアウト・更新の集約状態をリセットする
+        // （永久に抑止されたままにしない）。
+        resetAuthClientState();
+        logoutInFlight.current = null;
+      }
+    })();
+
+    logoutInFlight.current = run;
+    return run;
   }, []);
 
   // 起動時の認証状態確認と、callback / サインイン・サインアウトの検知。
@@ -93,6 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
       switch (payload.event) {
         case 'signedIn':
+          // 新しいサインイン。前セッションの集約状態を破棄する。
+          resetAuthClientState();
+          void refreshAuthState();
+          break;
         case 'signedOut':
         case 'tokenRefresh':
           void refreshAuthState();

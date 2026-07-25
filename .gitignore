@@ -30,11 +30,7 @@ Thumbs.db
 .idea/
 
 # docs
-docs/aws
-docs/nestjs
-docs/typescript
-docs/react
-docs/auth
+docs/personal/
 terraform-source-review.txt
 
 # CLAUDE
