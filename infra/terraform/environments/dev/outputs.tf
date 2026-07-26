@@ -104,7 +104,7 @@ output "cognito_token_endpoint" {
 
 output "cognito_userinfo_endpoint" {
   description = "UserInfo endpoint"
-  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.aws_region}.amazoncognito.com/oauth2/userInfo"
+  value       = local.cognito_userinfo_url
 }
 
 # --- バックエンド実装（別スレッド）へ渡す推奨環境変数名と値 -----------------
@@ -118,7 +118,7 @@ output "cognito_backend_env_suggestion" {
     COGNITO_USER_POOL_ID = aws_cognito_user_pool.main.id
     COGNITO_CLIENT_ID    = aws_cognito_user_pool_client.spa.id
     COGNITO_ISSUER       = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
-    COGNITO_USERINFO_URL = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.aws_region}.amazoncognito.com/oauth2/userInfo"
+    COGNITO_USERINFO_URL = local.cognito_userinfo_url
     COGNITO_REGION       = var.aws_region
   }
 }

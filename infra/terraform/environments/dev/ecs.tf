@@ -50,13 +50,22 @@ resource "aws_ecs_task_definition" "backend" {
         },
       ]
 
-      # 通常の環境変数（機密でないもの）。Cognito 系の変数はアプリ側に未実装のため
-      # ここでは注入せず、Terraform output と README で推奨名のみ提示する。
+      # 通常の環境変数（機密でないもの）。
+      # Cognito 系の ID / URL はハードコードせず、Cognito リソース・変数・local を参照する。
       environment = [
         { name = "PORT", value = tostring(var.container_port) },
         { name = "NODE_ENV", value = "production" },
         { name = "ENABLE_SWAGGER", value = var.enable_swagger },
         { name = "CORS_ORIGIN", value = var.cors_origin },
+
+        # Cognito（backend の JWT 検証 / User 解決で使用）。
+        # いずれも公開値（User Pool ID・App Client ID・UserInfo URL・リージョン）であり
+        # 機密ではないため、Secrets ではなく environment で注入する。
+        # issuer は backend 側で region と User Pool ID から導出するため注入しない。
+        { name = "COGNITO_REGION", value = var.aws_region },
+        { name = "COGNITO_USER_POOL_ID", value = aws_cognito_user_pool.main.id },
+        { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.spa.id },
+        { name = "COGNITO_USERINFO_URL", value = local.cognito_userinfo_url },
       ]
 
       # 機密値は Secrets Manager から注入する（平文の環境変数にしない）。
