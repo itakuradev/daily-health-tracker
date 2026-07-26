@@ -1211,6 +1211,32 @@ CloudFront（標準ドメイン・標準証明書）経由でHTTPS化する
 
 Step Hが完了するまでは、認証の動作確認は**ローカル環境（`http://localhost`）で行う**。
 
+## 22.2 dev環境の再構築（Cognito再作成後の開発ユーザー準備）
+
+dev環境はコスト抑制のため `terraform destroy` / `apply` を繰り返す運用で、そのたびにCognito User Poolが作り直され、登録ユーザーも消える（「24.6」を参照）。
+
+再構築後は次の流れで開発ユーザーを用意し、ローカル動作確認（Step F6）を行う。
+
+```text
+terraform apply
+→ scripts/seed-cognito-dev.ps1   （Cognito開発ユーザーを作成／再設定）
+→ frontend / backend の .env を Terraform output の値へ更新
+→ ローカルで動作確認（Step F6）
+```
+
+`scripts/seed-cognito-dev.ps1` はリポジトリルートから実行する。
+
+```powershell
+.\scripts\seed-cognito-dev.ps1 -Email "developer@example.com" -Name "開発ユーザー"
+```
+
+* User Pool IDはTerraform output（`cognito_user_pool_id`）から取得し、RegionはUser Pool IDから導出するため、User Pool再作成後もスクリプトの修正は不要
+* パスワードは実行時に対話入力する（引数・ファイル・ログに残さない）
+* 作成するのはCognito側のユーザーのみ。アプリDBの`User`は初回APIアクセス時にバックエンドが自動作成する（「10.3」）
+* 同じemailで再実行した場合は、属性更新と恒久パスワード再設定を行う（冪等）
+
+環境変数とTerraform outputの対応は「11-aws-architecture.md」（AWS構成メモ）および各`.env.example`で管理する。`VITE_COGNITO_DOMAIN`はホスト名のみ（`https://`やパスを含めない）である点に注意する。
+
 ---
 
 ## 23. 初期実装では扱わないこと
@@ -1296,7 +1322,7 @@ dev環境はコスト抑制のため、日次で `terraform destroy` / `apply` �
 | ------------------------------------------ | --------------------------- |
 | Cognitoを `shared` root moduleへ移動する          | 日次destroyの対象外となり、ID・ユーザーが保持される |
 | ID・Client IDをTerraform outputから自動で環境変数へ反映する | ID変化への追従を自動化できる             |
-| 初期ユーザー作成をスクリプト化する                          | 手動作成の手間を減らせる                |
+| 初期ユーザー作成をスクリプト化する（実施済み: `scripts/seed-cognito-dev.ps1`） | 手動作成の手間を減らせる（再構築手順は「22.2」を参照） |
 
 ECRを `shared` へ分離したのと同じ考え方で、**Cognitoも永続層へ移す案が有力**である。
 ただし、Cognitoの設定変更を伴う学習を継続する間はdev側に置く利点もあるため、導入時期は別途判断する。
