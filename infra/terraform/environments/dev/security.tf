@@ -8,8 +8,8 @@
 # SG 間の参照は referenced_security_group_id を使う。
 # CIDR 許可（cidr_ipv4）と SG 参照を混同しないこと。
 #
-#   Internet ──80──▶ [ALB SG] ──3000──▶ [ECS SG] ──5432──▶ [RDS SG]
-#                                          └──443──▶ 0.0.0.0/0（ECR/Logs/Secrets/Cognito）
+#   CloudFront(VPC Origin) ──80──▶ [ALB SG] ──3000──▶ [ECS SG] ──5432──▶ [RDS SG]
+#                                                        └──443──▶ 0.0.0.0/0（ECR/Logs/Secrets/Cognito）
 # ==========================================================================
 
 # --- SG 本体（ルールは下で別リソースとして付与） --------------------------
@@ -49,14 +49,16 @@ resource "aws_security_group" "rds" {
 
 # --- ALB SG rules ---------------------------------------------------------
 
-# Inbound: TCP 80 from 0.0.0.0/0（internet-facing）
+# Inbound: TCP 80 from CloudFront（VPC Origin）のみ。
+# 自己流の広い CIDR ではなく、AWS 管理 prefix list（origin-facing）に限定する。
+# これによりインターネットから internal ALB へ直接到達できない。
 resource "aws_vpc_security_group_ingress_rule" "alb_http_in" {
   security_group_id = aws_security_group.alb.id
-  description       = "HTTP from internet"
+  description       = "HTTP from CloudFront VPC origin only"
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
 }
 
 # Outbound: TCP 3000 to ECS SG

@@ -323,6 +323,42 @@ https://xxxxxxxxxxxx.cloudfront.net
 
 独自ドメインは取得しない。
 
+## 6.3 Step H 実装メモ（S3 + CloudFront によるHTTPS配信）
+
+Stage 2 のうち、S3・CloudFront によるHTTPS配信（Step H）を Terraform で実装した。実装上の要点は以下。
+
+**フロントエンド配信（S3 + OAC）**
+
+* `frontend-s3.tf`：非公開 S3 バケット（Block Public Access 全有効、Object Ownership = BucketOwnerEnforced で ACL 無効）
+* CloudFront Origin Access Control（OAC / SigV4）からのみ `GetObject` を許可。バケットポリシーは Distribution の ARN（`AWS:SourceArn`）で制限
+* build 成果物（`dist`）は Terraform では管理せず、`scripts/deploy-frontend-dev.ps1` で S3 へ sync する
+* dev の日次 destroy を成立させるため `force_destroy = true`
+
+**CloudFront Distribution（`cloudfront.tf`）**
+
+* default behavior → S3（`Managed-CachingOptimized`、圧縮有効、`default_root_object = index.html`）
+* `/api/*` behavior → VPC Origin 経由の internal ALB。キャッシュ無効（`Managed-CachingDisabled`）+ `Managed-AllViewerExceptHostHeader`（Authorization・Query・Cookie を転送、Host は origin=ALB DNS に設定）
+* Viewer の HTTP は HTTPS へリダイレクト。標準証明書（`*.cloudfront.net`）を使用
+* SPA ルーティングは default behavior のみに CloudFront Function（viewer-request）を関連付け、拡張子のないパスを `index.html` へ書き換える。`/api/*` には付けないため、API の 403/404/5xx が SPA へ変換されることはない
+
+**internal ALB / ネットワーク（`alb.tf`, `network.tf`, `security.tf`）**
+
+* ALB を `internal = true` にし、専用の Private Origin Subnet（`10.0.21.0/24`, `10.0.22.0/24`、IGW ルートなし）へ配置
+* ALB Security Group の inbound は AWS 管理 prefix list `com.amazonaws.global.cloudfront.origin-facing` の :80 のみ（インターネットから直接到達不可）
+* ECS Task は移動しない（Public Application Subnet + `assign_public_ip = true` のまま。NAT も追加しない）
+
+**Cognito（`cognito.tf`）**
+
+* App Client の callback / logout URL に、ローカル URL に加えて `https://<CloudFront ドメイン>/` を Distribution のリソース参照から追加（ハードコードなし・循環参照なし）
+
+**手動デプロイ**
+
+```text
+terraform apply
+→ terraform output で CloudFront / S3 / Cognito の値を取得
+→ scripts/deploy-frontend-dev.ps1（build → S3 sync → invalidation）
+```
+
 ---
 
 ## 7. ネットワーク設計

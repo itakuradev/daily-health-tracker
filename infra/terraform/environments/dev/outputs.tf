@@ -29,7 +29,7 @@ output "ecr_repository_url" {
 }
 
 output "alb_dns_name" {
-  description = "ALB の DNS 名。Stage 1 の疎通確認は http://<この値>/api/health"
+  description = "internal ALB の DNS 名（VPC 内部のみ到達可能。外部疎通は CloudFront 経由）"
   value       = aws_lb.main.dns_name
 }
 
@@ -68,6 +68,33 @@ output "rds_endpoint_address" {
 output "database_url_secret_arn" {
   description = "DATABASE_URL を格納した Secrets Manager Secret の ARN（値ではない）"
   value       = aws_secretsmanager_secret.database_url.arn
+}
+
+# --- Frontend S3 / CloudFront ---------------------------------------------
+
+output "frontend_bucket_name" {
+  description = "React SPA の build 成果物を sync する S3 バケット名"
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront Distribution ID（invalidation に使用）"
+  value       = aws_cloudfront_distribution.main.id
+}
+
+output "cloudfront_domain_name" {
+  description = "CloudFront 標準ドメイン（例: xxxx.cloudfront.net）"
+  value       = aws_cloudfront_distribution.main.domain_name
+}
+
+output "cloudfront_url" {
+  description = "アプリケーション公開 URL（HTTPS）"
+  value       = "https://${aws_cloudfront_distribution.main.domain_name}"
+}
+
+output "api_health_url" {
+  description = "ヘルスチェック URL（CloudFront 経由）"
+  value       = "https://${aws_cloudfront_distribution.main.domain_name}/api/health"
 }
 
 # --- Cognito --------------------------------------------------------------

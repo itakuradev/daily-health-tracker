@@ -43,6 +43,15 @@ variable "private_db_subnet_cidrs" {
   default     = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
+variable "private_origin_subnet_cidrs" {
+  description = <<-EOT
+    CloudFront VPC Origin 用の internal ALB を配置する Private Origin Subnet の CIDR
+    （2 つ、異なる AZ）。IGW へのルートを持たない private subnet に配置する。
+  EOT
+  type        = list(string)
+  default     = ["10.0.21.0/24", "10.0.22.0/24"]
+}
+
 # --- ECR ------------------------------------------------------------------
 
 variable "ecr_repository_name" {

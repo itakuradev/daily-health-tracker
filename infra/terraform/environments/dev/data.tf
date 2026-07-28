@@ -22,3 +22,10 @@ data "aws_availability_zones" "available" {
   state            = "available"
   exclude_zone_ids = ["apne1-az3"]
 }
+
+# CloudFront が origin へ接続する際の送信元 IP レンジ（AWS 管理 prefix list）。
+# internal ALB の Security Group inbound をこの prefix list に限定し、
+# 自己流の広い CIDR 許可を避ける（公式手順 Option 1）。
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}

@@ -63,6 +63,26 @@ resource "aws_subnet" "private_db" {
   }
 }
 
+# --- Private Origin Subnet x2（CloudFront VPC Origin 用 internal ALB）-------
+#
+# CloudFront VPC Origin は origin（internal ALB）を private subnet に置くことを要件とする。
+# CloudFront が service-managed ENI をこの subnet に作成し、private 接続する。
+# IGW へのデフォルトルートは持たせない（インターネットから ALB へ直接到達させない）。
+# AZ は data.aws_availability_zones で apne1-az3 を除外済みのため VPC Origin 要件に適合する。
+
+resource "aws_subnet" "private_origin" {
+  count = length(var.private_origin_subnet_cidrs)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_origin_subnet_cidrs[count.index]
+  availability_zone = local.azs[count.index]
+
+  tags = {
+    Name = "${local.name_prefix}-private-origin-${local.azs[count.index]}"
+    Tier = "private-origin"
+  }
+}
+
 # --- Public Route Table（0.0.0.0/0 → IGW） --------------------------------
 
 resource "aws_route_table" "public" {
@@ -102,4 +122,24 @@ resource "aws_route_table_association" "private_db" {
 
   subnet_id      = aws_subnet.private_db[count.index].id
   route_table_id = aws_route_table.private_db.id
+}
+
+# --- Private Origin Route Table（外部へのデフォルトルートなし） --------------
+
+resource "aws_route_table" "private_origin" {
+  vpc_id = aws_vpc.main.id
+
+  # 0.0.0.0/0 ルートを持たない。VPC 内ローカルルートのみ。
+  # （CloudFront VPC Origin は private 接続のため、subnet に IGW ルートは不要。）
+
+  tags = {
+    Name = "${local.name_prefix}-private-origin-rt"
+  }
+}
+
+resource "aws_route_table_association" "private_origin" {
+  count = length(aws_subnet.private_origin)
+
+  subnet_id      = aws_subnet.private_origin[count.index].id
+  route_table_id = aws_route_table.private_origin.id
 }

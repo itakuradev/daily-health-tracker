@@ -1,17 +1,20 @@
 # ==========================================================================
-# ALB（Stage 1: internet-facing）
+# ALB（Stage 2: internal / CloudFront VPC Origin 経由）
 #
-#   Internet ─80─▶ ALB Listener ─▶ Target Group(ip:3000) ─▶ ECS Task ENI
+#   CloudFront ─(VPC Origin)─80─▶ internal ALB Listener ─▶ Target Group(ip:3000)
+#                                                          ─▶ ECS Task ENI
 #
+# internal = true とし、Private Origin Subnet に配置する。
+# インターネットから ALB へ直接到達させず、CloudFront を単一の入口にする。
 # Target Group / Listener は ECS Service より先に必要（ecs.tf の depends_on 参照）。
 # ==========================================================================
 
 resource "aws_lb" "main" {
   name               = "${local.name_prefix}-alb"
   load_balancer_type = "application"
-  internal           = false
+  internal           = true
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public_app[*].id
+  subnets            = aws_subnet.private_origin[*].id
 
   tags = {
     Name        = "${local.name_prefix}-alb"

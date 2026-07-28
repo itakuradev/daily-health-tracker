@@ -719,14 +719,16 @@ SPA用のCognito App Clientを作成する。
 
 環境ごとにcallback URL / logout URLを設定する。
 
-| 環境         | Callback URL             | Logout URL               |
-| ---------- | ------------------------ | ------------------------ |
-| local      | `http://localhost:5173/` | `http://localhost:5173/` |
-| production | 本番フロントエンドURL             | 本番フロントエンドURL             |
+| 環境         | Callback URL                    | Logout URL                      |
+| ---------- | ------------------------------- | ------------------------------- |
+| local      | `http://localhost:5173/`        | `http://localhost:5173/`        |
+| AWS (dev)  | `https://<CloudFrontドメイン>/`     | `https://<CloudFrontドメイン>/`     |
+
+AWS (dev) の URL は、Step H（S3 + CloudFront）の CloudFront 標準ドメインである。App Client の callback / logout URL には、ローカル URL に加えてこの CloudFront URL を Terraform のリソース参照から追加する（`cognito.tf`。実ドメインはハードコードしない）。ローカル URL は残す。
 
 Callback URLはルート（`/`）とし、専用のcallbackルートは設けない（「12.1.1」を参照）。
 
-具体的なURLはAWS構成メモで管理する。
+具体的なURLはAWS構成メモ（`11-aws-architecture.md`「6.3」）で管理する。
 
 ## 15.4 MFA
 

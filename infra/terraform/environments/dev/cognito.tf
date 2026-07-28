@@ -64,9 +64,11 @@ resource "aws_cognito_user_pool_client" "spa" {
   allowed_oauth_scopes                 = ["openid", "email", "profile"]
   supported_identity_providers         = ["COGNITO"]
 
-  # 将来 CloudFront 導入時は変数へ URL を追加すれば拡張できる。
-  callback_urls = var.cognito_callback_urls
-  logout_urls   = var.cognito_logout_urls
+  # ローカル URL（変数）に加え、CloudFront 標準ドメインの URL を追加する。
+  # 実ドメインはハードコードせず Distribution のリソース参照から組み立てる。
+  # （Distribution は Cognito を参照しないため循環参照は発生しない。）
+  callback_urls = concat(var.cognito_callback_urls, ["https://${aws_cloudfront_distribution.main.domain_name}/"])
+  logout_urls   = concat(var.cognito_logout_urls, ["https://${aws_cloudfront_distribution.main.domain_name}/"])
 
   # ユーザー存在有無を秘匿する。
   prevent_user_existence_errors = "ENABLED"
