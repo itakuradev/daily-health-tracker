@@ -831,6 +831,15 @@ Amazon RDS for PostgreSQL
 
 PostgreSQLのmajor versionは、Prismaとアプリケーションが対応している範囲で、構築時点の安定版を選択する。
 
+### アプリケーションからのSSL/TLS接続
+
+RDS PostgreSQLはデフォルトでSSL必須（`rds.force_ssl=1`）のため、AWS上のECSバックエンドはRDSへ**SSL/TLSで接続する**（非SSL接続は拒否され、Prisma P1010 / no encryption となる）。
+
+* `DATABASE_URL` のSSLパラメータ（`sslmode=no-verify`）はTerraformで設定し、Secrets Manager経由でECSへ注入する（`secrets.tf`）。
+* dev環境では、TLSによる暗号化を行いつつサーバー証明書の厳密な検証を省略する `sslmode=no-verify` を採用する（CA配布・証明書管理を持ち込まない最小構成）。
+* RDS側のSSL必須設定（`rds.force_ssl`）は変更しない。
+* 本番相当環境では、RDS CAを配布して `sslmode=verify-full` によるCA検証を検討する。
+
 ## 13.2 Instance Class
 
 構築時点で東京リージョンから選択可能な、最小のburstable instanceを使用する。
