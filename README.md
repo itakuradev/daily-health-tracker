@@ -28,8 +28,10 @@ daily-health-tracker/
 ### 1. PostgreSQL を起動
 
 ```bash
-docker-compose up -d
+docker compose up -d postgres
 ```
+
+> backend / frontend は Docker では起動しない（下記のとおり npm で起動する）。
 
 ### 2. Backend を起動
 
