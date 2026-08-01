@@ -1232,6 +1232,30 @@ Backendは以下を検証する。
 * token_use
 * 必要に応じてscope
 
+## 20.6 ローカル開発専用Cognito（shared）
+
+`environments/dev` の Cognito は日次 `terraform destroy` で削除される。フロントエンドのデザイン刷新やグラフ機能をローカル中心で開発する間、destroy に影響されない Cognito を `infra/terraform/shared`（ECR と同じ永続層、state は `shared/terraform.tfstate`）で管理する。
+
+* `environments/dev` の Cognito とは**別の User Pool を新規作成**し、両方を並存させる（dev の import・移行・削除はしない）。
+* 4リソース（`aws_cognito_user_pool` / `aws_cognito_user_pool_client` / `aws_cognito_user_pool_domain` / `aws_cognito_managed_login_branding`）を定義する。`managed_login_branding` が無いと Managed Login のログイン画面が正しく表示されないため必須。
+* 命名は `daily-health-tracker-local-*`（dev は `-dev-*`）で衝突しない。Domain prefix は `daily-health-tracker-local-<AccountID>` とし、dev（`-dev-<AccountID>`）と異なる prefix + Account ID suffix でグローバル一意にする。
+* App Client 設定は dev と同一（public client / Authorization Code + PKCE / scope openid,email,profile / COGNITO のみ / prevent_user_existence_errors）。Callback / Logout URL は**localhost のみ**（`http://localhost:5173/`）で、CloudFront・dev への依存を持たない（変数化）。
+* shared は CloudFront・dev 環境・他 state を参照しない。`shared` を destroy しない限りこの Cognito は残る。
+
+ローカル `.env` へ設定する値は shared の Terraform output から取得する（`terraform -chdir=infra/terraform/shared output`）。対応は以下。`issuer` は backend が `COGNITO_REGION` と `COGNITO_USER_POOL_ID` から導出するため output・環境変数にしない。
+
+| Terraform output（shared） | .env 変数 | 形式 |
+| --- | --- | --- |
+| `cognito_local_user_pool_id` | `VITE_COGNITO_USER_POOL_ID` / `COGNITO_USER_POOL_ID` | User Pool ID |
+| `cognito_local_client_id` | `VITE_COGNITO_CLIENT_ID` / `COGNITO_CLIENT_ID` | App Client ID（Secret なし） |
+| `cognito_local_domain_host` | `VITE_COGNITO_DOMAIN` | ホスト名のみ（`https://` 無し） |
+| `cognito_local_userinfo_url` | `COGNITO_USERINFO_URL` | フル URL（`/oauth2/userInfo`） |
+| `cognito_local_region` | `COGNITO_REGION` | リージョン |
+| `cognito_local_redirect_sign_in` | `VITE_COGNITO_REDIRECT_SIGN_IN` | `http://localhost:5173/` |
+| `cognito_local_redirect_sign_out` | `VITE_COGNITO_REDIRECT_SIGN_OUT` | `http://localhost:5173/` |
+
+開発ユーザーは `scripts/seed-cognito-local.ps1`（shared の User Pool だけを対象）で作成する。dev 用の `scripts/seed-cognito-dev.ps1` は別途 dev 環境用として残す。
+
 ---
 
 ## 21. Cognito UserとアプリUserの紐づけ

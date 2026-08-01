@@ -31,3 +31,23 @@ variable "ecr_untagged_expire_days" {
   type        = number
   default     = 14
 }
+
+# --- ローカル開発専用 Cognito ---------------------------------------------
+
+variable "cognito_local_callback_urls" {
+  description = <<-EOT
+    ローカル開発専用 Cognito App Client の Callback URL。
+    ローカル Vite（http://localhost:5173/）のみ。CloudFront / dev 環境の URL は含めない。
+  EOT
+  type        = list(string)
+  default     = ["http://localhost:5173/"]
+}
+
+variable "cognito_local_logout_urls" {
+  description = <<-EOT
+    ローカル開発専用 Cognito App Client の Logout URL。
+    ローカル Vite（http://localhost:5173/）のみ。CloudFront / dev 環境の URL は含めない。
+  EOT
+  type        = list(string)
+  default     = ["http://localhost:5173/"]
+}
