@@ -639,7 +639,7 @@ Interceptor は使用していない。共通のログ整形・変換 Intercepto
 
 | 判断 | 内容 / 理由 | トレードオフ | 見直し条件 |
 | --- | --- | --- | --- |
-| NestJS + TypeScript | DI・Module・Guard/Pipe/Filter の標準機構で構成を統一。型安全 | 学習・記述量のオーバーヘッド | — |
+| NestJS + TypeScript | DI・Module・Guard/Pipe/Filter の標準機構で構成を統一。型安全 | 記述量のオーバーヘッド | — |
 | REST + Swagger を仕様の正本 | フロントとの境界を単純化。詳細は OpenAPI に集約（ADR-002） | スキーマ手管理 | GraphQL 等が必要になった場合 |
 | Prisma + PostgreSQL | 型安全なクエリとマイグレーション。`(userId, recordDate)` 複合 unique で 1 日 1 件を担保 | Prisma 固有仕様への依存 | 複雑クエリ要件の増加 |
 | Cognito 認証 / Access Token | 認証基盤を委譲。API 認可は Access Token のみ（ADR-003/005） | 外部依存・障害時分類が必要 | — |

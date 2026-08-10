@@ -389,7 +389,7 @@ export async function saveMeal(input: SaveMealInput): Promise<Meal> {
 * 画面数が少ない
 * 状態の種類が限定的
 * まず完成させることを優先する
-* 学習コストを抑えられる
+* 依存パッケージを増やさず保守コストを抑えられる
 
 ## 9.2 管理する状態
 

@@ -42,7 +42,7 @@ Stage 2を、本アプリケーションの完成形として扱う。
 
 Stage 2の完成形（CloudFront、S3、internal ALB、VPC Origin、GitHub Actions、ecspresso等）は設計として維持し、実装はStage 2以降で行う。
 
-なお、VPC・Subnet・Route Table・Security Groupについては、AWSコンソールによる手動構築で接続関係の学習を既に完了している。以降のAWS構築はTerraformを主経路とする（詳細は「31. Terraform化方針」を参照）。
+ネットワーク（VPC・Subnet・Route Table・Security Group）を含むAWSリソースは、Terraformを主経路として管理する（詳細は「31. Terraform化方針」を参照）。
 
 ---
 
@@ -67,7 +67,7 @@ AWS構成では、以下を基本方針とする。
 
 ## 3. 対象環境
 
-初期構築では、開発・学習用の1環境のみを作成する。
+運用コストを月1万円程度以内に抑えるため、環境はdevの1つのみとする（常時起動時の概算。実際は日次で`terraform destroy`する運用のためさらに低くなる。実コストは別途計測する）。
 
 ```text
 Environment:
@@ -1591,19 +1591,18 @@ Terraformとの管理重複を避けるため、完成形では以下の分担�
 
 Terraformとecspressoの両方から同じECS Serviceを変更しない。
 
-## 25.1 学習上の位置づけ
+## 25.1 導入優先度の位置づけ
 
-ecspressoを使う構成は技術的に整合しているが、汎用的な学習価値ではTerraformやGitHub Actionsほど普遍的ではない。習得の優先順位は次のとおりとする。
+ecspressoはECSデプロイに適した構成だが、汎用性・再利用性ではTerraformやGitHub Actionsほど広くない。導入の優先度は、汎用性と再利用性の高い順に次のとおりとする。
 
 ```text
-1. AWS手動構築
-2. Terraform
-3. GitHub Actions + OIDC
-4. ECSデプロイ自動化
-5. ecspresso
+1. Terraform（IaC の主経路）
+2. GitHub Actions + OIDC（CI/CD）
+3. ECSデプロイ自動化
+4. ecspresso（ECSデプロイの最適化）
 ```
 
-ecspressoは設計として残すが、Stage 1やTerraform学習を止めてまで先に習得する必要はない。
+ecspressoは設計として残すが、Stage 1の完成とTerraform整備を優先し、後続で導入する。
 
 ---
 
@@ -1858,17 +1857,15 @@ Tagは、リソース検索とコスト確認に利用する。
 
 ## 31. Terraform化方針
 
-## 31.1 学習経緯とTerraformの位置づけ
+## 31.1 Terraformの位置づけ
 
-VPC・Subnet・Route Table・Security Groupについては、AWSコンソールによる手動構築で接続関係の学習を既に完了している。手動学習で得た理解：
+AWSリソースはTerraformを主経路として管理する。ネットワーク（VPC・Subnet・Route Table・Security Group）を含め、構成はTerraformコードとplan結果を正とする。Terraformで定義する主なネットワーク関係は次のとおり。
 
 * VPCとSubnetの関係
 * Internet GatewayとRoute Tableの関係
 * Security Group間参照
 
-これらの手動学習は完了したため、以降のAWS構築はTerraformを主経路とする。ALB・ECS・RDS・Cognito等、未学習のサービス間関係についても、Terraformコードとplan結果、およびAWSコンソールでの反映確認を通じて理解を進める。
-
-AWSコンソールは、Terraform反映結果の確認に使用する。
+ALB・ECS・RDS・Cognito等のサービス間関係も同様に、Terraformコードとplan結果で構成を定義する。AWSコンソールは、Terraform反映結果の確認に使用する。
 
 ## 31.2 既存リソースの扱い
 
