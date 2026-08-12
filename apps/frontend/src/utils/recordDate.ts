@@ -26,3 +26,14 @@ export function getTodayRecordDate(): string {
 export function parseRecordDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00+09:00`);
 }
+
+/**
+ * Date をローカルの暦日として YYYY-MM-DD 文字列へ整形する。
+ * react-calendar が返すローカル Date を記録日文字列へ戻す用途。
+ */
+export function formatRecordDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

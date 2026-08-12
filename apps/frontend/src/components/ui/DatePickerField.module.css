@@ -1,0 +1,78 @@
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.trigger:hover {
+  border-color: var(--color-accent);
+}
+
+.triggerIcon {
+  color: var(--color-accent);
+}
+
+.dateText {
+  font-variant-numeric: tabular-nums;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 20;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+}
+
+/* 記録のある日のマーカー（react-calendar のタイルに付与される） */
+.marked {
+  position: relative;
+}
+
+.marked::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .controls {
+    gap: var(--space-2);
+  }
+
+  .trigger {
+    font-size: var(--fs-base);
+    padding: 0 var(--space-3);
+  }
+}

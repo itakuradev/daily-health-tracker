@@ -1,0 +1,55 @@
+/*
+ * デザイントークン（v2）。
+ * 色・余白・角丸・影・フォントサイズを CSS 変数で一元管理する。
+ *
+ * breakpoint は含めない。media query の条件式では var() を使えないため、
+ * 各コンポーネントの @media で直接 max-width を記述する
+ *   @media (max-width: 1024px)  … タブレット
+ *   @media (max-width: 768px)   … スマートフォン
+ */
+:root {
+  /* --- カラー --- */
+  --color-bg: #f5f7f4; /* ページ背景（非常に薄いグレー） */
+  --color-surface: #ffffff; /* カード背景 */
+  --color-text: #2c3330; /* メインテキスト（濃いグレー） */
+  --color-text-muted: #6b7280; /* サブテキスト（中間グレー） */
+  --color-border: #e3e7e2; /* 薄いボーダー */
+
+  /* アクセント（緑）。選択状態・Primary ボタンなどに使用 */
+  --color-accent: #4a8c40;
+  --color-accent-hover: #3f7a37;
+  --color-accent-contrast: #ffffff;
+  --color-accent-soft: #eaf3e7; /* アクセントの淡い背景（選択hover等） */
+
+  /* ヘッダー（濃い緑のバナー。全面ではなくヘッダー帯のみ） */
+  --color-header-bg: #3f7a37;
+  --color-header-text: #ffffff;
+
+  /* 状態 */
+  --color-danger: #c0392b;
+  --color-focus: #4a8c40;
+
+  /* --- 余白 --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* --- 角丸 --- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* --- 影（控えめ） --- */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.12);
+
+  /* --- フォントサイズ --- */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+}
