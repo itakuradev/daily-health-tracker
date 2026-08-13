@@ -1,38 +1,18 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AppHeader } from '../components/AppHeader';
 import ConditionForm from '../components/ConditionForm';
 import MealForm from '../components/MealForm';
 import WorkoutForm from '../components/WorkoutForm';
-import { useAuth } from '../contexts/AuthContext';
 import { getTodayRecordDate } from '../utils/recordDate';
 
 export default function DailyPage() {
-  const { currentUser, logout } = useAuth();
-  const navigate = useNavigate();
   const [date, setDate] = useState(getTodayRecordDate);
-
-  const handleLogout = () => {
-    void (async () => {
-      await logout();
-      navigate('/');
-    })();
-  };
 
   const handleTodayClick = () => setDate(getTodayRecordDate());
 
   return (
     <div style={s.container}>
-      <header style={s.header}>
-        <h1 style={s.headerTitle}>健康管理マスター</h1>
-        <div style={s.headerActions}>
-          <button style={s.historyButton} onClick={() => navigate('/history')}>
-            📅 履歴
-          </button>
-          <button style={s.logoutButton} onClick={handleLogout}>
-            ログアウト
-          </button>
-        </div>
-      </header>
+      <AppHeader nav="toHistory" />
 
       <main style={s.main}>
         {/* 日付バー */}
@@ -47,7 +27,6 @@ export default function DailyPage() {
           <button style={s.todayButton} onClick={handleTodayClick}>
             今日
           </button>
-          <span style={s.userId}>{currentUser?.name ?? currentUser?.email ?? ''}</span>
         </div>
 
         <div style={s.grid}>

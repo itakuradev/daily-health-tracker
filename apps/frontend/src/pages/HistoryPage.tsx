@@ -1,8 +1,7 @@
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { AppHeader } from '../components/AppHeader';
 import { useHistory } from '../hooks/useHistory';
 import type { DailyRecord } from '../types/api';
 
@@ -15,9 +14,6 @@ const SCORE_LABELS: Record<number, string> = {
 };
 
 export default function HistoryPage() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
   const today = new Date();
   const [activeDate, setActiveDate] = useState(today);          // カレンダーが表示している月
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -30,13 +26,6 @@ export default function HistoryPage() {
   const month = activeDate.getMonth() + 1;
 
   const { recordedDates, fetchDaily, deleteDaily } = useHistory(year, month);
-
-  const handleLogout = () => {
-    void (async () => {
-      await logout();
-      navigate('/');
-    })();
-  };
 
   // カレンダーの月が切り替わったとき
   const handleActiveStartDateChange = ({ activeStartDate }: { activeStartDate: Date | null }) => {
@@ -79,13 +68,7 @@ export default function HistoryPage() {
 
   return (
     <div style={s.container}>
-      <header style={s.header}>
-        <div style={s.headerLeft}>
-          <button style={s.backButton} onClick={() => navigate('/daily')}>← 記録</button>
-          <h1 style={s.headerTitle}>履歴</h1>
-        </div>
-        <button style={s.logoutButton} onClick={handleLogout}>ログアウト</button>
-      </header>
+      <AppHeader nav="toRecord" />
 
       <main style={s.main}>
         <div style={s.layout}>
