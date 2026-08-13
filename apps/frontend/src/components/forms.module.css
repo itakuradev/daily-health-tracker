@@ -1,0 +1,11 @@
+/* 3 つの記録フォーム（食事 / 体調 / 筋トレ）で共通のコンテナ */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hint {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,50 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.btn:hover:not(.active) {
+  border-color: var(--color-accent);
+}
+
+.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* 5 ボタン(40px)+ 4 gap(8px) = 232px の幅で両端に配置 */
+.anchors {
+  display: flex;
+  justify-content: space-between;
+  width: 232px;
+  max-width: 100%;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
