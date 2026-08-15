@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+
+/** 1 日 86,400,000 ミリ秒 */
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class HistoryService {
@@ -7,6 +10,25 @@ export class HistoryService {
 
   private toRecordDate(dateStr: string): Date {
     return new Date(dateStr + 'T00:00:00.000Z');
+  }
+
+  /** Date（UTC 0時保存）を YYYY-MM-DD 文字列へ */
+  private toDateStr(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  /** YYYY-MM-DD を検証し UTC 0時の Date にする。不正なら 400。 */
+  private parseValidDate(dateStr: string): Date {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      throw new BadRequestException(
+        'date は YYYY-MM-DD 形式で指定してください。',
+      );
+    }
+    const d = new Date(dateStr + 'T00:00:00.000Z');
+    if (Number.isNaN(d.getTime())) {
+      throw new BadRequestException('date が不正です。');
+    }
+    return d;
   }
 
   /**
@@ -67,6 +89,59 @@ export class HistoryService {
     ]);
 
     return { date, meal, condition, workout };
+  }
+
+  /**
+   * 選択日を含む週（日曜〜土曜）の7日分の記録をまとめて返す。
+   *
+   * 週範囲の算出はバックエンドに集約する（フロントは date を渡すだけ）。
+   * 常に7日分を返し、記録のない日は null。グラフと日別詳細の両方をこの1レスポンスで賄う。
+   */
+  async getWeeklyRecords(userId: number, date: string) {
+    const base = this.parseValidDate(date);
+
+    // 日曜起点。getUTCDay(): 0=日曜 … 6=土曜。
+    const weekStartMs = base.getTime() - base.getUTCDay() * DAY_MS;
+    const weekStart = new Date(weekStartMs);
+    const weekEndExclusive = new Date(weekStartMs + 7 * DAY_MS);
+
+    const [meals, conditions, workouts] = await Promise.all([
+      this.prisma.meal.findMany({
+        where: { userId, recordDate: { gte: weekStart, lt: weekEndExclusive } },
+      }),
+      this.prisma.condition.findMany({
+        where: { userId, recordDate: { gte: weekStart, lt: weekEndExclusive } },
+      }),
+      this.prisma.workout.findMany({
+        where: { userId, recordDate: { gte: weekStart, lt: weekEndExclusive } },
+      }),
+    ]);
+
+    const mealByDate = new Map(
+      meals.map((m) => [this.toDateStr(m.recordDate), m]),
+    );
+    const conditionByDate = new Map(
+      conditions.map((c) => [this.toDateStr(c.recordDate), c]),
+    );
+    const workoutByDate = new Map(
+      workouts.map((w) => [this.toDateStr(w.recordDate), w]),
+    );
+
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const dstr = this.toDateStr(new Date(weekStartMs + i * DAY_MS));
+      return {
+        date: dstr,
+        meal: mealByDate.get(dstr) ?? null,
+        condition: conditionByDate.get(dstr) ?? null,
+        workout: workoutByDate.get(dstr) ?? null,
+      };
+    });
+
+    return {
+      weekStart: this.toDateStr(weekStart),
+      weekEnd: this.toDateStr(new Date(weekStartMs + 6 * DAY_MS)),
+      days,
+    };
   }
 
   /**

@@ -67,6 +67,29 @@ export class HistoryController {
   }
 
   /**
+   * GET /api/history/weekly?date=2026-08-11
+   * 選択日を含む週（日曜〜土曜）の7日分の記録を返す。
+   */
+  @Get('weekly')
+  @ApiOperation({
+    summary: '週次記録取得',
+    description:
+      '選択日を含む週（日曜〜土曜）の7日分の食事・体調・筋トレを返す。記録のない日は null。',
+  })
+  @ApiQuery({
+    name: 'date',
+    example: '2026-08-11',
+    description: '週の基準日 (YYYY-MM-DD)',
+  })
+  @ApiOkResponse({
+    description:
+      '{ weekStart, weekEnd, days: [{ date, meal, condition, workout } × 7] }',
+  })
+  getWeekly(@CurrentUserId() userId: number, @Query('date') date: string) {
+    return this.historyService.getWeeklyRecords(userId, date);
+  }
+
+  /**
    * DELETE /api/history/daily?date=2026-07-04
    * 指定日の食事・体調・筋トレをトランザクションで一括削除する。
    */
