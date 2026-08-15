@@ -79,3 +79,10 @@ export interface DailyRecord {
   condition: ConditionRecord | null;
   workout: WorkoutRecord | null;
 }
+
+/** 履歴: 週次まとめ（GET /api/history/weekly レスポンス）。days は常に7日分（日曜〜土曜） */
+export interface WeeklyRecord {
+  weekStart: string;
+  weekEnd: string;
+  days: DailyRecord[];
+}
