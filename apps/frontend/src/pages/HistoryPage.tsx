@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dumbbell, HeartPulse, Trash2, Utensils } from 'lucide-react';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/ui/Button';
@@ -39,6 +39,16 @@ export default function HistoryPage() {
 
   const { recordedDates, deleteDaily } = useHistory(markerYear, markerMonth);
   const { week, loading, error, refetch } = useWeeklyRecords(selectedDate);
+
+  // 削除確認ダイアログは Escape で閉じる
+  useEffect(() => {
+    if (!deleteOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDeleteOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [deleteOpen]);
 
   const metric = getMetric(metricKey);
   const selectedDay = week?.days.find((d) => d.date === selectedDate) ?? null;
