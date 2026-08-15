@@ -46,24 +46,31 @@ export function AppHeader({ nav }: AppHeaderProps) {
             type="button"
             className={styles.navBtn}
             onClick={() => navigate('/history')}
+            aria-label="履歴"
           >
             <History size={18} aria-hidden="true" />
-            履歴
+            <span className={styles.navLabel}>履歴</span>
           </button>
         ) : (
           <button
             type="button"
             className={styles.navBtn}
             onClick={() => navigate('/daily')}
+            aria-label="記録"
           >
             <Pencil size={18} aria-hidden="true" />
-            記録
+            <span className={styles.navLabel}>記録</span>
           </button>
         )}
 
-        <button type="button" className={styles.navBtn} onClick={handleLogout}>
+        <button
+          type="button"
+          className={styles.navBtn}
+          onClick={handleLogout}
+          aria-label="ログアウト"
+        >
           <LogOut size={18} aria-hidden="true" />
-          ログアウト
+          <span className={styles.navLabel}>ログアウト</span>
         </button>
       </nav>
     </header>

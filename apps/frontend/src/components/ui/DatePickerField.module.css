@@ -42,11 +42,21 @@
   top: calc(100% + var(--space-2));
   left: 0;
   z-index: 20;
+  width: 300px;
+  /* 狭幅でも画面外にはみ出さない（ページ左右パディング分を控除） */
+  max-width: calc(100vw - var(--space-4) * 2);
   padding: var(--space-2);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-pop);
+}
+
+/* react-calendar をポップオーバー幅いっぱいに収め、二重枠を除去 */
+.popover :global(.react-calendar) {
+  width: 100%;
+  border: none;
+  font-family: inherit;
 }
 
 /* 記録のある日のマーカー（react-calendar のタイルに付与される） */

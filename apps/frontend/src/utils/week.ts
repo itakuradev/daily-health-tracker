@@ -5,11 +5,11 @@
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
-/** "2026-08-11" → "8/11(火)"（グラフのX軸ラベル） */
-export function formatDayLabel(dateStr: string): string {
+/** "2026-08-11" → "火"（グラフX軸の短縮ラベル。狭幅でも重ならない） */
+export function formatWeekday(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return `${m}/${d}(${WEEKDAYS[weekday]})`;
+  return WEEKDAYS[weekday];
 }
 
 /** "2026-08-11" → "8月11日"（Tooltip・詳細見出し） */

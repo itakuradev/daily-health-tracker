@@ -8,7 +8,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { DailyRecord } from '../../types/api';
-import { formatDayLabel, formatMonthDay, formatNumber } from '../../utils/week';
+import { formatMonthDay, formatNumber, formatWeekday } from '../../utils/week';
 import type { GraphMetric } from './graphMetrics';
 import styles from './WeeklyChart.module.css';
 
@@ -55,7 +55,7 @@ function ChartTooltip({ active, payload, unit }: ChartTooltipProps) {
 export function WeeklyChart({ days, metric }: WeeklyChartProps) {
   const data: ChartDatum[] = days.map((d) => ({
     date: d.date,
-    label: formatDayLabel(d.date),
+    label: formatWeekday(d.date),
     value: metric.accessor(d),
   }));
 

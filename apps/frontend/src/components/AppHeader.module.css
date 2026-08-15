@@ -72,6 +72,10 @@
   outline-offset: 2px;
 }
 
+.navLabel {
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .header {
     padding: var(--space-3) var(--space-4);
@@ -89,5 +93,18 @@
 
   .navBtn {
     padding: 0 var(--space-2);
+  }
+}
+
+/* スマホ幅ではボタンをアイコンのみにして溢れを防ぐ（aria-label で読み上げは維持） */
+@media (max-width: 480px) {
+  .navLabel {
+    display: none;
+  }
+
+  .navBtn {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
   }
 }
