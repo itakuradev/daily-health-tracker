@@ -24,6 +24,32 @@
 | 認証 | Amazon Cognito（aws-jwt-verify でトークン検証） |
 | インフラ | AWS / Terraform |
 
+## AWS 構成
+
+```mermaid
+flowchart LR
+    browser["Browser"]
+
+    subgraph aws["AWS （Terraform で管理）"]
+        cf["CloudFront"]
+        s3["S3<br/>React SPA"]
+        cognito["Cognito<br/>Managed Login"]
+        alb["ALB"]
+        ecs["ECS Fargate<br/>NestJS API"]
+        rds["RDS PostgreSQL"]
+    end
+
+    browser --> cf
+    cf -->|"default"| s3
+    cf -->|"/api/*"| alb --> ecs --> rds
+    browser -.->|"ログイン"| cognito
+```
+
+- 認証: Browser → Cognito → Access Token 取得
+- API: Browser → CloudFront → ALB → ECS
+- JWT: NestJS で署名検証
+- Infrastructure: Terraform
+
 ## アーキテクチャ
 
 ```text
