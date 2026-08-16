@@ -11,8 +11,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: health_tracker
+    # ホスト側は 5433 を使う（別プロジェクトが 5432 を使うため競合回避）。
+    # コンテナ内は従来どおり 5432。接続は apps/backend/.env の DATABASE_URL(localhost:5433)。
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
