@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* フォーム内で最下部に固定配置（コンテンツとの間の余白は許容） */
+  margin-top: auto;
 }
 
 .buttons {

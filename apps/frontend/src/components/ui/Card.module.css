@@ -4,6 +4,9 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: var(--space-5);
+  /* 等高グリッド内でカード全体をセル高いっぱいに広げ、本文を伸縮させる */
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -39,4 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* カード高が余る場合に本文が伸び、内部の下寄せ配置を可能にする */
+  flex: 1 1 auto;
+  min-height: 0;
 }

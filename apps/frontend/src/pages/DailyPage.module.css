@@ -19,7 +19,8 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-5);
-  align-items: start;
+  /* 同じ行のカードを最も高いカード（食事）に合わせて等高にする */
+  align-items: stretch;
 }
 
 @media (max-width: 1024px) {

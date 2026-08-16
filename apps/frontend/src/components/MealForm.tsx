@@ -92,7 +92,7 @@ export default function MealForm({ date }: Props) {
 
       <TextareaField
         label="メモ"
-        rows={3}
+        rows={1}
         placeholder="例）朝食：ご飯・味噌汁、昼食：定食"
         value={values.memo}
         onChange={handleChange('memo')}
