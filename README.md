@@ -34,15 +34,18 @@ flowchart LR
         cf["CloudFront"]
         s3["S3<br/>React SPA"]
         cognito["Cognito<br/>Managed Login"]
-        alb["ALB"]
+        alb["Application Load Balancer<br/>(internal)"]
         ecs["ECS Fargate<br/>NestJS API"]
         rds["RDS PostgreSQL"]
     end
 
-    browser --> cf
-    cf -->|"default"| s3
-    cf -->|"/api/*"| alb --> ecs --> rds
-    browser -.->|"ログイン"| cognito
+    browser -->|"HTTPS"| cf
+    cf -->|"default<br/>画面・静的ファイル"| s3
+    cf -->|"/api/*<br/>VPC Origin"| alb
+    alb --> ecs
+    ecs --> rds
+
+    browser -.->|"Login / Access Token"| cognito
 ```
 
 - 認証: Browser → Cognito → Access Token 取得
@@ -67,7 +70,7 @@ daily-health-tracker/
 - 記録は `userId + recordDate` で一意。未入力は `null`、`0` は有効値として区別する。
 - 記録日は JST 午前5時を境界に算出する。
 - 週範囲（日曜〜土曜）はバックエンドで算出し、1リクエストで7日分を返す。
-- 認証は Cognito の Access Token を検証する。フロントの認証状態は画面制御のみに使う。
+- - 認証は Cognito の Access Token をバックエンドで検証する。フロントは認証状態に応じて画面表示を制御し、API リクエストには Access Token を付与する。
 
 ## 動作環境
 
